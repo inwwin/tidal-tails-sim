@@ -135,17 +135,17 @@ class TwoBodyProblem:
             0           # initial angle
         ])
 
-    def solve_two_body_problem(self, t_end, sampling_points=1000, pos_events=None, neg_events=None):
+    def solve_two_body_problem(self, t_end, sampling_points=1000, future_events=None, past_events=None):
 
         # Solve the initial value problem to the future
         self._integration_result_future = \
             solve_ivp(fun=self._hamilton_eqm,
                       t_span=(0, t_end),  # future
-                      t_eval=np.linspace(0,t_end,sampling_points),
+                      t_eval=np.linspace(0, t_end, sampling_points),
                       y0=self._get_initial_phase(),
                       method='RK45',
                       dense_output=True,
-                      events=pos_events,
+                      events=future_events,
                       vectorized=True)
 
         # Solve the initial value problem to the past,
@@ -155,11 +155,11 @@ class TwoBodyProblem:
             self._integration_result_past = \
                 solve_ivp(fun=self._hamilton_eqm,
                           t_span=(0, -t_end),  # past
-                          t_eval=np.linspace(0,-t_end,sampling_points),
+                          t_eval=np.linspace(0, -t_end, sampling_points),
                           y0=self._get_initial_phase(),
                           method='RK45',
                           dense_output=True,
-                          events=neg_events,
+                          events=past_events,
                           vectorized=True)
 
         self._process_integration_result()
@@ -204,26 +204,38 @@ class TwoBodyProblem:
         is_past = time < 0
         is_future = time >= 0
 
-        time_indices = np.indices(time.shape)
+        # different behaviour depending on whether time is 0d array or 1d array
+        if np.ndim(time) == 0:
+            if is_past:
+                if self._integration_result_past is not None:
+                    phase = self._integration_result_past.sol(time)
+                else:
+                    phase = self._integration_result_future.sol(-time)
+            else:
+                phase = self._integration_result_future.sol(time)
+        elif np.ndim(time) == 1:
+            time_indices = np.indices(time.shape)
 
-        past_indices = time_indices[is_past]
-        future_indices = time_indices[is_future]
+            past_indices = time_indices[is_past]
+            future_indices = time_indices[is_future]
 
-        past_time = time[is_past]
-        future_time = time[is_future]
+            past_time = time[is_past]
+            future_time = time[is_future]
 
-        if self._integration_result_past is not None:
-            past_phase = self._integration_result_past.sol(past_time)
+            if self._integration_result_past is not None:
+                past_phase = self._integration_result_past.sol(past_time)
+            else:
+                past_phase = self._integration_result_future.sol(-past_time)
+
+            future_phase = self._integration_result_future.sol(future_time)
+
+            time_indices_join = np.concatenate((past_indices, future_indices), axis=0)
+            phase_join = np.concatenate((past_phase, future_phase), axis=1)
+
+            rank = np.argsort(time_indices_join)
+            phase = phase_join[rank]
         else:
-            past_phase = self._integration_result_future.sol(-past_time)
-
-        future_phase = self._integration_result_future.sol(future_time)
-
-        time_indices_join = np.concatenate((past_indices, future_indices), axis=0)
-        phase_join = np.concatenate((past_phase, future_phase), axis=1)
-
-        rank = np.argsort(time_indices_join)
-        phase = phase_join[rank]
+            raise ValueError('time must be either 0d or 1d array')
 
         return phase
 
@@ -234,13 +246,13 @@ class TwoBodyProblem:
         """
         phase = self.evaluate_dense_phase_at(time)
         if self._use_reduced_mass:
-            r1 = (-self._reduced_mass / self._M1) * phase[0, :]
-            r2 = (+self._reduced_mass / self._M2) * phase[0, :]
+            r1 = (-self._reduced_mass / self._M1) * phase[0]
+            r2 = (+self._reduced_mass / self._M2) * phase[0]
         else:
             r1 = np.zeros(self.__t.shape)
-            r2 = phase[0, :]
+            r2 = phase[0]
 
-        angle = phase[2, :]
+        angle = phase[2]
 
         return (r1, r2, angle)
 
@@ -258,8 +270,8 @@ class TwoBodyProblem:
 
     def plot_two_body_paths(self, axes, zdir=None):
         if zdir is None:
-            axes.plot(self.__x1, self.__y1, '+-', color='royalblue')
-            axes.plot(self.__x2, self.__y2, '+-', color='darkorange')
+            axes.plot(self.__x1, self.__y1, color='royalblue')
+            axes.plot(self.__x2, self.__y2, color='darkorange')
         else:
             axes.plot(self.__x1, self.__y1, zdir=zdir, color='royalblue')
             axes.plot(self.__x2, self.__y2, zdir=zdir, color='darkorange')
