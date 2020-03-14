@@ -95,7 +95,7 @@ class TwoBodyProblem:
     @staticmethod
     def calculate_reduced_mass(Ms):
         Ms = np.array(Ms)
-        return np.sum(Ms**(-1))**(-1)
+        return 1 / np.sum(1 / Ms)
 
     def gravi_potential(self, r):
         return (- self._G * self._M1 * self._M2) / r
@@ -117,14 +117,14 @@ class TwoBodyProblem:
 
         angular conjugate momentum is omitted since it is conserved
         """
-        r = phase[..., 0]
-        Pr = phase[..., 1]
+        r = phase[0, ...]
+        Pr = phase[1, ...]
         # angle = phase[..., 2]
 
         phase_d = np.zeros(phase.shape)
-        phase_d[..., 0] = Pr / self._reduced_mass
-        phase_d[..., 1] = (-self._J**2 / self._reduced_mass) * r**(-3) - self.deriv_gravi_potential(r)
-        phase_d[..., 2] = (self._J / self._reduced_mass) * r**(-2)
+        phase_d[0, ...] = Pr / self._reduced_mass
+        phase_d[1, ...] = (self._J**2 / self._reduced_mass) * r**(-3) - self.deriv_gravi_potential(r)
+        phase_d[2, ...] = (self._J / self._reduced_mass) * r**(-2)
 
         return phase_d
 
@@ -135,12 +135,13 @@ class TwoBodyProblem:
             0           # initial angle
         ])
 
-    def solve_two_body_problem(self, t_end, pos_events=None, neg_events=None):
+    def solve_two_body_problem(self, t_end, sampling_points=1000, pos_events=None, neg_events=None):
 
         # Solve the initial value problem to the future
         self._integration_result_future = \
             solve_ivp(fun=self._hamilton_eqm,
                       t_span=(0, t_end),  # future
+                      t_eval=np.linspace(0,t_end,sampling_points),
                       y0=self._get_initial_phase(),
                       method='RK45',
                       dense_output=True,
@@ -154,10 +155,11 @@ class TwoBodyProblem:
             self._integration_result_past = \
                 solve_ivp(fun=self._hamilton_eqm,
                           t_span=(0, -t_end),  # past
+                          t_eval=np.linspace(0,-t_end,sampling_points),
                           y0=self._get_initial_phase(),
                           method='RK45',
                           dense_output=True,
-                          events=pos_events,
+                          events=neg_events,
                           vectorized=True)
 
         self._process_integration_result()
@@ -171,16 +173,19 @@ class TwoBodyProblem:
             self.__phase = np.concatenate((self._integration_result_past.y[:, :0:-1], self._integration_result_future.y), axis=1)
         else:
             self.__t = np.concatenate((-1 * self._integration_result_future.t[:0:-1], self._integration_result_future.t))
-            past_y = self._integration_result_future.y[:, :0:-1]
+            past_y = np.copy(self._integration_result_future.y[:, :0:-1])
+            past_y[2, :] *= -1
             self.__phase = np.concatenate((past_y, self._integration_result_future.y), axis=1)
+
+        # print(self.__t, self.__phase)
 
         # calculate coordinates with respect to the centre of mass of the system
         if self._use_reduced_mass:
-            self.__r1 = (-self._reduced_mass / self.M1) * self.__phase[:, 0]
-            self.__r2 = (+self._reduced_mass / self.M2) * self.__phase[:, 0]
+            self.__r1 = (-self._reduced_mass / self._M1) * self.__phase[0, :]
+            self.__r2 = (+self._reduced_mass / self._M2) * self.__phase[0, :]
         else:
             self.__r1 = np.zeros(self.__t.shape)
-            self.__r2 = np.copy(self.__phase[:, 0])
+            self.__r2 = np.copy(self.__phase[0, :])
 
         self.__angle = self.__phase[2, :]
 
@@ -229,8 +234,8 @@ class TwoBodyProblem:
         """
         phase = self.evaluate_dense_phase_at(time)
         if self._use_reduced_mass:
-            r1 = (-self._reduced_mass / self.M1) * phase[0, :]
-            r2 = (+self._reduced_mass / self.M2) * phase[0, :]
+            r1 = (-self._reduced_mass / self._M1) * phase[0, :]
+            r2 = (+self._reduced_mass / self._M2) * phase[0, :]
         else:
             r1 = np.zeros(self.__t.shape)
             r2 = phase[0, :]
@@ -250,3 +255,11 @@ class TwoBodyProblem:
         x2 = r2 * np.cos(angle)
         y2 = r2 * np.sin(angle)
         return ((x1, y1), (x2, y2))
+
+    def plot_two_body_paths(self, axes, zdir=None):
+        if zdir is None:
+            axes.plot(self.__x1, self.__y1, '+-', color='royalblue')
+            axes.plot(self.__x2, self.__y2, '+-', color='darkorange')
+        else:
+            axes.plot(self.__x1, self.__y1, zdir=zdir, color='royalblue')
+            axes.plot(self.__x2, self.__y2, zdir=zdir, color='darkorange')

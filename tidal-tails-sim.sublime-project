@@ -6,6 +6,11 @@
 			"name": "Anaconda Python Builder",
 			"selector": "source.python",
 			"shell_cmd": "\"python\" -u \"$file\""
+		},
+		{
+			"name": "Run Project",
+			"working_dir": "$project_path",
+			"shell_cmd": "python -m tidaltailsim"
 		}
 	],
 	"folders":
@@ -16,6 +21,6 @@
 	],
 	"settings":
 	{
-		"python_interpreter": "tcp://thunderbird-2.linux.ds.cam.ac.uk:6667"
+		"python_interpreter": "tcp://localhost:6668"
 	}
 }
