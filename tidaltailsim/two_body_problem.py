@@ -58,7 +58,7 @@ class TwoBodyProblem:
     @property
     def G(self):
         return self._G
-    
+
     @property
     def reduced_mass(self):
         return self._reduced_mass
@@ -66,15 +66,15 @@ class TwoBodyProblem:
     @property
     def Mass1(self):
         return self._M1
-    
+
     @property
     def Mass2(self):
         return self._M2
-    
+
     @property
     def initial_radial_momentum(self):
         return self._Pr0  # Pr0 is the initial radial momentum
-    
+
     @property
     def angular_momentum(self):
         return self._J
@@ -87,6 +87,29 @@ class TwoBodyProblem:
     def gravi_potential(self, r):
         return (- self._G * self._M1 * self._M2) / r
 
-    def deriv_gravi_potential(r):
+    def deriv_gravi_potential(self, r):
         """Calculate first derivative of gravitational potential"""
         return (self._G * self._M1 * self._M2) / r**2
+
+    def _hamilton_eqm(self, t, phase):
+        """
+        Calculate system of equations of motion from Hamilton equations
+        from the given vectorised points in the phase space
+
+        where
+        phase[0] is r radius
+        phase[1] is radial conjugate momentum
+        phase[2] is phi angle
+
+        angular conjugate momentum is omitted since it is conserved
+        """
+        r = phase[..., 0]
+        Pr = phase[..., 1]
+        # angle = phase[..., 2]
+
+        phase_d = np.zeros(phase.shape)
+        phase_d[..., 0] = Pr / self._reduced_mass
+        phase_d[..., 1] = (-self._J**2 / self._reduced_mass) * r**(-3) - self.deriv_gravi_potential(r)
+        phase_d[..., 2] = (self._J / self._reduced_mass) * r**(-2)
+
+        return phase_d
