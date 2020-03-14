@@ -16,6 +16,6 @@
 	],
 	"settings":
 	{
-		"python_interpreter": "tcp://thunderbird-2.linux.ds.cam.ac.uk:6666"
+		"python_interpreter": "tcp://thunderbird-2.linux.ds.cam.ac.uk:6667"
 	}
 }
