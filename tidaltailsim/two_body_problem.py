@@ -23,7 +23,7 @@ class TwoBodyProblem:
     M1 and M2 are the masses of the two bodies.
     """
 
-    def __init__(self, r0, r0d=0, E=0, J=None, G=1, M1=1, M2=1, use_reduced_mass=True):
+    def __init__(self, r0, r0d=0., E=0., J=None, G=1., M1=1., M2=1., use_reduced_mass=True):
         """
         Initialise the two-body problem from the given initial condition
 
@@ -59,11 +59,11 @@ class TwoBodyProblem:
 
         if J is None:
             Pr0 = rM * r0d
-            J = np.sqrt((E - self.gravi_potential(r0)) * 2 * rM * r0**2 - Pr0**2 * r0**2)
+            J = np.sqrt((E - self.gravi_potential_energy(r0)) * 2 * rM * r0**2 - Pr0**2 * r0**2)
             if np.isnan(J):
                 raise ValueError('Specified parameters give unphysical angular momentum')
         else:
-            Pr0 = np.sqrt((E - self.gravi_potential(r0)) * 2 * rM - J**2 / r0**2)
+            Pr0 = np.sqrt((E - self.gravi_potential_energy(r0)) * 2 * rM - J**2 / r0**2)
             if np.isnan(Pr0):
                 raise ValueError('Specified parameters give unphysical initial radial momentum')
             if r0d < 0:
@@ -112,11 +112,11 @@ class TwoBodyProblem:
         Ms = np.array(Ms)
         return 1 / np.sum(1 / Ms)
 
-    def gravi_potential(self, r):
+    def gravi_potential_energy(self, r):
         """Calculate the gravitational potential between the two bodies"""
         return (- self._G * self._M1 * self._M2) / r
 
-    def deriv_gravi_potential(self, r):
+    def deriv_gravi_potential_energy(self, r):
         """Calculate first derivative of gravitational potential between the two bodies"""
         return (self._G * self._M1 * self._M2) / r**2
 
@@ -146,7 +146,7 @@ class TwoBodyProblem:
 
         phase_d = np.zeros(phase.shape)
         phase_d[0, ...] = Pr / self._reduced_mass
-        phase_d[1, ...] = (self._J**2 / self._reduced_mass) * r**(-3) - self.deriv_gravi_potential(r)
+        phase_d[1, ...] = (self._J**2 / self._reduced_mass) * r**(-3) - self.deriv_gravi_potential_energy(r)
         phase_d[2, ...] = (self._J / self._reduced_mass) * r**(-2)
 
         return phase_d
@@ -221,20 +221,34 @@ class TwoBodyProblem:
         else:
             self.__t = np.concatenate((-1 * self._integration_result_future.t[:0:-1], self._integration_result_future.t))
             past_y = np.copy(self._integration_result_future.y[:, :0:-1])
-            past_y[2, :] *= -1
+            past_y[1, :] *= -1  # inverse the momentum
+            past_y[2, :] *= -1  # inverse the angle
             self.__phase = np.concatenate((past_y, self._integration_result_future.y), axis=1)
 
         # print(self.__t, self.__phase)
+
+        self.__angle = self.__phase[2, :]
+
+        # convert the momentum into cartesian component from Pr and J
+        self.__Px = self.__phase[1, :] * np.cos(self.__angle) - self._J / self.__phase[0, :] * np.sin(self.__angle)
+        self.__Py = self.__phase[1, :] * np.sin(self.__angle) + self._J / self.__phase[0, :] * np.cos(self.__angle)
 
         # calculate coordinates with respect to the centre of mass of the system
         if self._use_reduced_mass:
             self.__r1 = (-self._reduced_mass / self._M1) * self.__phase[0, :]
             self.__r2 = (+self._reduced_mass / self._M2) * self.__phase[0, :]
+
+            self.__vx1 = -self.__Px / self._M1
+            self.__vy1 = -self.__Py / self._M1
         else:
             self.__r1 = np.zeros(self.__t.shape)
             self.__r2 = np.copy(self.__phase[0, :])
 
-        self.__angle = self.__phase[2, :]
+            self.__vx1 = np.zeros(self.__t.shape)
+            self.__vy1 = np.zeros(self.__t.shape)
+
+        self.__vy2 = +self.__Py / self._M2
+        self.__vx2 = +self.__Px / self._M2
 
         # convert polar coordinates to cartesian coordinates
         self.__x1 = self.__r1 * np.cos(self.__angle)
@@ -315,7 +329,7 @@ class TwoBodyProblem:
         y2 = r2 * np.sin(angle)
         return ((x1, y1), (x2, y2))
 
-    def plot_two_body_paths(self, axes, zdir=None):
+    def plot_two_body_paths(self, axes, zdir=None, plot_v0=None):
 
         # if zdir is supplied assume that axes is an axes3D instance
         if zdir is None:
@@ -324,6 +338,15 @@ class TwoBodyProblem:
         else:
             axes.plot(self.__x1, self.__y1, zdir=zdir, color='royalblue')
             axes.plot(self.__x2, self.__y2, zdir=zdir, color='darkorange')
+
+        # plot the arrows showing the velocity at given index
+        if plot_v0 is not None:
+            if len(plot_v0) == 2:
+                factor = plot_v0[0]
+                indices = plot_v0[1]
+                for i in indices:
+                    axes.arrow(self.__x1[i], self.__y1[i], factor * self.__vx1[i], factor * self.__vy1[i], width=.05, color='lightsteelblue')
+                    axes.arrow(self.__x2[i], self.__y2[i], factor * self.__vx2[i], factor * self.__vy2[i], width=.05, color='burlywood')
 
     def _prepare_animating_object(self, axes):
         line2body1, = axes.plot(self.__x1[0], self.__y1[0], '.', color='navy', markersize=5.0)
