@@ -11,7 +11,7 @@ def two_body_routine(args):
     fig, ax = plt.subplots()
 
     ax.set_aspect('equal')
-    problem.plot_two_body_paths(ax)
+    problem.plot_two_body_paths(ax)  # , plot_v0=(1, [0, 800, 999, 1200, -1]))
 
     if args.animation:
         animation = problem.animate(fig, ax, rate=args.animation, framerate=args.framerate)
