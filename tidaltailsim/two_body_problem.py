@@ -207,7 +207,7 @@ class TwoBodyProblem:
     def evaluate_dense_phase_at(self, time):
         """
         evaluate dense Hamilton phase in polar coordinates
-        time must be 1d array
+        time must be 0d or 1d array
         """
         # evaluate dense solution for t<0 and t>=0 separately, and join them back together at the end
         is_past = time < 0
