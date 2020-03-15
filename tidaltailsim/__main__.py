@@ -4,7 +4,7 @@ import argparse
 
 
 def two_body_routine(args):
-    problem = TwoBodyProblem(r0=args.r0, E=args.energy, M1=args.mass[0], M2=args.mass[1])
+    problem = TwoBodyProblem(r0=args.r0, E=args.energy, M1=args.mass[0], M2=args.mass[1], use_reduced_mass=not args.rmoff)
     # print(problem.angular_momentum)
     problem.solve_problem(10)
     # print(problem.__x1,problem.__y1)
@@ -35,6 +35,8 @@ if __name__ == '__main__':
                         help='Total energy of the two system')
     parser.add_argument('-m', '--mass', nargs=2, type=float, default=[1.0, 1.0],
                         metavar=('mass_1', 'mass_2'))
+    parser.add_argument('-rmoff', action='store_true',
+                        help='Don\'t use reduced mass, assume mass_1 >> mass_2')
     parser.add_argument('-a', '--animation', nargs='?', type=float, const=1.0, default=None,
                         metavar='speed',
                         help='Enable animation, with the optional supplied speed (default 1.0)')
