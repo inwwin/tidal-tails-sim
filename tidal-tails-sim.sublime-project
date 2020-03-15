@@ -9,8 +9,8 @@
 		},
 		{
 			"name": "Run Project",
-			"working_dir": "$project_path",
-			"shell_cmd": "python -m tidaltailsim"
+			"shell_cmd": "python -m tidaltailsim 2body -a 1 0",
+			"working_dir": "$project_path"
 		}
 	],
 	"folders":
@@ -21,6 +21,6 @@
 	],
 	"settings":
 	{
-		"python_interpreter": "tcp://localhost:6668"
+		"python_interpreter": "python"
 	}
 }

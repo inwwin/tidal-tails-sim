@@ -1,5 +1,6 @@
 import numpy as np
 from scipy.integrate import solve_ivp
+from matplotlib.animation import FuncAnimation
 
 
 class TwoBodyProblem:
@@ -137,16 +138,21 @@ class TwoBodyProblem:
 
     def solve_two_body_problem(self, t_end, sampling_points=1000, future_events=None, past_events=None):
 
+        if t_end <= 0:
+            raise ValueError('t_end must be positive')
         # Solve the initial value problem to the future
         self._integration_result_future = \
             solve_ivp(fun=self._hamilton_eqm,
                       t_span=(0, t_end),  # future
-                      t_eval=np.linspace(0, t_end, sampling_points),
+                      t_eval=np.linspace(0, t_end, sampling_points, endpoint=False),
                       y0=self._get_initial_phase(),
                       method='RK45',
                       dense_output=True,
                       events=future_events,
                       vectorized=True)
+
+        # print(self._integration_result_future.t[[0, -1]])
+        # print(self._integration_result_future.y[..., [0, -1]])
 
         # Solve the initial value problem to the past,
         # only if initial radial momentum is non-zero,
@@ -155,7 +161,7 @@ class TwoBodyProblem:
             self._integration_result_past = \
                 solve_ivp(fun=self._hamilton_eqm,
                           t_span=(0, -t_end),  # past
-                          t_eval=np.linspace(0, -t_end, sampling_points),
+                          t_eval=np.linspace(0, -t_end, sampling_points, endpoint=False),
                           y0=self._get_initial_phase(),
                           method='RK45',
                           dense_output=True,
@@ -163,6 +169,9 @@ class TwoBodyProblem:
                           vectorized=True)
 
         self._process_integration_result()
+
+        self._t_end = t_end
+        self._sampling_points = 1000
 
         return (self._integration_result_future, self._integration_result_past)
 
@@ -275,3 +284,32 @@ class TwoBodyProblem:
         else:
             axes.plot(self.__x1, self.__y1, zdir=zdir, color='royalblue')
             axes.plot(self.__x2, self.__y2, zdir=zdir, color='darkorange')
+
+    def _prepare_animating_object(self, axes):
+        line2body1, = axes.plot(self.__x1[0], self.__y1[0], '.', color='navy', markersize=5.0)
+        line2body2, = axes.plot(self.__x2[0], self.__y2[0], '.', color='maroon', markersize=5.0)
+        return [line2body1, line2body2]
+
+    def _animation_func(self, frame_index, *animating_artists):
+        line2body1 = animating_artists[0]
+        line2body2 = animating_artists[1]
+
+        line2body1.set_data([self.__x1[frame_index], self.__y1[frame_index]])
+        line2body2.set_data([self.__x2[frame_index], self.__y2[frame_index]])
+
+        return [line2body1, line2body2]
+
+    def animate(self, figure, axes, rate=1.0):
+        interval = int(1000 * self._t_end / self._sampling_points / rate)
+
+        animating_artists = self._prepare_animating_object(axes)
+
+        animation = \
+            FuncAnimation(figure,
+                          blit=True,
+                          frames=self.__t.shape[0],
+                          interval=interval,
+                          fargs=animating_artists,
+                          func=self._animation_func)
+
+        return animation
