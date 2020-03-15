@@ -5,8 +5,22 @@ from matplotlib.animation import FuncAnimation
 
 class TwoBodyProblem:
     """
-    Solver and plotter for the general two-body problem in gravitational potential
-    e.g. binary star, two cores of colliding galaxies
+    Solver and plotter for the general gravitational two-body problem in the centre-of-mass frame
+    e.g. binary star system, two cores of colliding galaxies
+
+    Remark:
+    This class use the polar coordinate Hamiltonian given by,
+    Hamiltonian = (1/2) * Pr^2 / rM
+                + (1/2) * J^2 / (rM * r^2)
+                + gravi_potential(r),
+    where gravi_potential(r) = - G * M1 * M2 / r
+
+    r is the radial coordinate between the two bodies.
+    Pr is the radial conjugate momentum.
+    J is the angular conjugate momentum.
+    rM is the reduced mass parameter.
+    G is the Gravitational constant.
+    M1 and M2 are the masses of the two bodies.
     """
 
     def __init__(self, r0, r0d=0, E=0, J=None, G=1, M1=1, M2=1, use_reduced_mass=True):
@@ -99,10 +113,11 @@ class TwoBodyProblem:
         return 1 / np.sum(1 / Ms)
 
     def gravi_potential(self, r):
+        """Calculate the gravitational potential between the two bodies"""
         return (- self._G * self._M1 * self._M2) / r
 
     def deriv_gravi_potential(self, r):
-        """Calculate first derivative of gravitational potential"""
+        """Calculate first derivative of gravitational potential between the two bodies"""
         return (self._G * self._M1 * self._M2) / r**2
 
     def _hamilton_eqm(self, t, phase):
@@ -117,6 +132,13 @@ class TwoBodyProblem:
         phase[2] is phi angle
 
         angular conjugate momentum is omitted since it is conserved
+
+        Remark:
+        This class use the Hamiltonian given by,
+        Hamiltonian = (1/2) * Pr^2 / rM
+                    + (1/2) * J^2 / (rM * r^2)
+                    + gravi_potential(r),
+        where gravi_potential(r) = - G * M1 * M2 / r
         """
         r = phase[0, ...]
         Pr = phase[1, ...]
@@ -136,7 +158,22 @@ class TwoBodyProblem:
             0           # initial angle
         ])
 
-    def solve_two_body_problem(self, t_end, sampling_points=1000, future_events=None, past_events=None):
+    def solve_problem(self, t_end, sampling_points=1000, future_events=None, past_events=None):
+        """
+        Solve the problem both to the past and to the future (w.r.t t=0)
+        ie, from t=-t_end to t=+t_end
+
+        Return:
+        a tuple of (future, past) scipy.integrate.OdeSolution objects
+        obtained from executing scipy.integrate.solve_ivp
+        past is None if the solution is symmetric
+
+        The solution signature is such that each dimension of y corresponds to
+        0: radial coordinate between the two-body
+        1: radial conjugate momentum
+        2: angular coordinate
+        (in polar-coordinate)
+        """
 
         if t_end <= 0:
             raise ValueError('t_end must be positive')
@@ -157,6 +194,7 @@ class TwoBodyProblem:
         # Solve the initial value problem to the past,
         # only if initial radial momentum is non-zero,
         # i.e., the solution is not symmetric for past and present
+        # (This helps decrrease execution time)
         if self._Pr0 != 0:
             self._integration_result_past = \
                 solve_ivp(fun=self._hamilton_eqm,
@@ -278,6 +316,8 @@ class TwoBodyProblem:
         return ((x1, y1), (x2, y2))
 
     def plot_two_body_paths(self, axes, zdir=None):
+
+        # if zdir is supplied assume that axes is an axes3D instance
         if zdir is None:
             axes.plot(self.__x1, self.__y1, color='royalblue')
             axes.plot(self.__x2, self.__y2, color='darkorange')
@@ -300,6 +340,8 @@ class TwoBodyProblem:
         return [line2body1, line2body2]
 
     def animate(self, figure, axes, rate=1.0, framerate=None):
+
+        # if framrate is not given, all frames get rendered (potentially impacting the performance)
         if framerate:
             framestep = int(round(self._sampling_points * rate / (framerate * self._t_end)))
             frames = range(0, self.__t.shape[0], framestep)

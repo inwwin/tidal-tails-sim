@@ -6,7 +6,7 @@ import argparse
 def two_body_routine(args):
     problem = TwoBodyProblem(r0=args.r0, E=args.energy, M1=args.mass[0], M2=args.mass[1])
     # print(problem.angular_momentum)
-    problem.solve_two_body_problem(10)
+    problem.solve_problem(10)
     # print(problem.__x1,problem.__y1)
     fig, ax = plt.subplots()
 
