@@ -299,15 +299,21 @@ class TwoBodyProblem:
 
         return [line2body1, line2body2]
 
-    def animate(self, figure, axes, rate=1.0):
-        interval = int(1000 * self._t_end / self._sampling_points / rate)
+    def animate(self, figure, axes, rate=1.0, framerate=None):
+        if framerate:
+            framestep = int(round(self._sampling_points * rate / (framerate * self._t_end)))
+            frames = range(0, self.__t.shape[0], framestep)
+            interval = int(round(framestep * 1000 * self._t_end / self._sampling_points / rate))
+        else:
+            interval = int(round(1000 * self._t_end / self._sampling_points / rate))
+            frames = self.__t.shape[0]
 
         animating_artists = self._prepare_animating_object(axes)
 
         animation = \
             FuncAnimation(figure,
                           blit=True,
-                          frames=self.__t.shape[0],
+                          frames=frames,
                           interval=interval,
                           fargs=animating_artists,
                           func=self._animation_func)

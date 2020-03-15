@@ -2,6 +2,9 @@
 
 tidal-tails-sim.sublime-workspace
 tidaltailsim/__pycache__/
-output.mp4
+*.mp4
+*.png
+*.pdf
+*.svg
 preliminary/3danim/movie.htm
 preliminary/3danim/movie_frames/
