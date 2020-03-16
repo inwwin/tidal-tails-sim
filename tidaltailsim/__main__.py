@@ -39,14 +39,14 @@ def two_galaxy_routine(args):
 
     problem.solve_two_body_problem(args.time_span / 2)
     radii = np.arange(2, 7)
-    problem.configure_galaxy1(radii, radii * 6, np.pi / 12, np.pi / 6)
+    problem.configure_galaxy(1, radii, radii * 6, np.pi / 12, np.pi / 6)
 
     fig, ax = plt.subplots(subplot_kw=dict(projection='3d') if not args.d2 else None)
     # fig = plt.Figure()
     # ax = fig.add_subplot(projection='3d')
 
     problem.plot_two_body_paths(ax)  # , plot_v0=(1, [0, 800, 999, 1200, -1]))
-    problem.plot_galaxy1_initial_positions(ax)
+    problem.plot_galaxies_initial_positions(ax)
     plt.show()
 
     # if args.animation:
