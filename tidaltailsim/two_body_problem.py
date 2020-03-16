@@ -159,7 +159,7 @@ class TwoBodyProblem:
             0           # initial angle
         ])
 
-    def solve_problem(self, t_end, sampling_points=1000, future_events=None, past_events=None):
+    def solve_two_body_problem(self, t_end, sampling_points=1000, future_events=None, past_events=None):
         """
         Solve the problem both to the past and to the future (w.r.t t=0)
         ie, from t=-t_end to t=+t_end
@@ -330,10 +330,10 @@ class TwoBodyProblem:
         y2 = r2 * np.sin(angle)
         return ((x1, y1), (x2, y2))
 
-    def plot_two_body_paths(self, axes, zdir=None, plot_v0=None):
+    def plot_two_body_paths(self, axes, zdir='z', plot_v0=None):
 
         # if zdir is supplied assume that axes is an axes3D instance
-        if zdir is None:
+        if not hasattr(axes, 'plot3D'):
             axes.plot(self._x1, self._y1, color='royalblue')
             axes.plot(self._x2, self._y2, color='darkorange')
             # plot the arrows showing the velocity at given index
@@ -346,8 +346,8 @@ class TwoBodyProblem:
                         axes.arrow(self._x2[i], self._y2[i], factor * self._vx2[i], factor * self._vy2[i], width=.05, color='burlywood')
 
         else:
-            axes.plot(self._x1, self._y1, zdir=zdir, color='royalblue')
-            axes.plot(self._x2, self._y2, zdir=zdir, color='darkorange')
+            axes.plot3D(self._x1, self._y1, zdir=zdir, color='royalblue')
+            axes.plot3D(self._x2, self._y2, zdir=zdir, color='darkorange')
 
     def _prepare_animating_object(self, axes):
         line2body1, = axes.plot([self._x1[0]], [self._y1[0]], '.', color='navy', markersize=5.0)
