@@ -216,10 +216,10 @@ class TwoBodyProblem:
     def _process_integration_result(self):
         # join past and future solution
         if self._integration_result_past is not None:
-            self.__t = np.concatenate((self._integration_result_past.t[:0:-1], self._integration_result_future.t))
+            self._t = np.concatenate((self._integration_result_past.t[:0:-1], self._integration_result_future.t))
             self.__phase = np.concatenate((self._integration_result_past.y[:, :0:-1], self._integration_result_future.y), axis=1)
         else:
-            self.__t = np.concatenate((-1 * self._integration_result_future.t[:0:-1], self._integration_result_future.t))
+            self._t = np.concatenate((-1 * self._integration_result_future.t[:0:-1], self._integration_result_future.t))
             past_y = np.copy(self._integration_result_future.y[:, :0:-1])
             past_y[1, :] *= -1  # inverse the momentum
             past_y[2, :] *= -1  # inverse the angle
@@ -227,34 +227,34 @@ class TwoBodyProblem:
 
         # print(self.__t, self.__phase)
 
-        self.__angle = self.__phase[2, :]
+        self._angle = self.__phase[2, :]
 
         # convert the momentum into cartesian component from Pr and J
-        self.__Px = self.__phase[1, :] * np.cos(self.__angle) - self._J / self.__phase[0, :] * np.sin(self.__angle)
-        self.__Py = self.__phase[1, :] * np.sin(self.__angle) + self._J / self.__phase[0, :] * np.cos(self.__angle)
+        self._Px = self.__phase[1, :] * np.cos(self.__angle) - self._J / self.__phase[0, :] * np.sin(self._angle)
+        self._Py = self.__phase[1, :] * np.sin(self.__angle) + self._J / self.__phase[0, :] * np.cos(self._angle)
 
         # calculate coordinates with respect to the centre of mass of the system
         if self._use_reduced_mass:
-            self.__r1 = (-self._reduced_mass / self._M1) * self.__phase[0, :]
-            self.__r2 = (+self._reduced_mass / self._M2) * self.__phase[0, :]
+            self._r1 = (-self._reduced_mass / self._M1) * self.__phase[0, :]
+            self._r2 = (+self._reduced_mass / self._M2) * self.__phase[0, :]
 
-            self.__vx1 = -self.__Px / self._M1
-            self.__vy1 = -self.__Py / self._M1
+            self._vx1 = -self._Px / self._M1
+            self._vy1 = -self._Py / self._M1
         else:
-            self.__r1 = np.zeros(self.__t.shape)
-            self.__r2 = np.copy(self.__phase[0, :])
+            self._r1 = np.zeros(self._t.shape)
+            self._r2 = np.copy(self.__phase[0, :])
 
-            self.__vx1 = np.zeros(self.__t.shape)
-            self.__vy1 = np.zeros(self.__t.shape)
+            self._vx1 = np.zeros(self._t.shape)
+            self._vy1 = np.zeros(self._t.shape)
 
-        self.__vy2 = +self.__Py / self._M2
-        self.__vx2 = +self.__Px / self._M2
+        self._vy2 = +self._Py / self._M2
+        self._vx2 = +self._Px / self._M2
 
         # convert polar coordinates to cartesian coordinates
-        self.__x1 = self.__r1 * np.cos(self.__angle)
-        self.__y1 = self.__r1 * np.sin(self.__angle)
-        self.__x2 = self.__r2 * np.cos(self.__angle)
-        self.__y2 = self.__r2 * np.sin(self.__angle)
+        self._x1 = self._r1 * np.cos(self._angle)
+        self._y1 = self._r1 * np.sin(self._angle)
+        self._x2 = self._r2 * np.cos(self._angle)
+        self._y2 = self._r2 * np.sin(self._angle)
 
     def evaluate_dense_phase_at(self, time):
         """
@@ -310,7 +310,7 @@ class TwoBodyProblem:
             r1 = (-self._reduced_mass / self._M1) * phase[0]
             r2 = (+self._reduced_mass / self._M2) * phase[0]
         else:
-            r1 = np.zeros(self.__t.shape)
+            r1 = np.zeros(self._t.shape)
             r2 = phase[0]
 
         angle = phase[2]
@@ -333,11 +333,11 @@ class TwoBodyProblem:
 
         # if zdir is supplied assume that axes is an axes3D instance
         if zdir is None:
-            axes.plot(self.__x1, self.__y1, color='royalblue')
-            axes.plot(self.__x2, self.__y2, color='darkorange')
+            axes.plot(self._x1, self._y1, color='royalblue')
+            axes.plot(self._x2, self._y2, color='darkorange')
         else:
-            axes.plot(self.__x1, self.__y1, zdir=zdir, color='royalblue')
-            axes.plot(self.__x2, self.__y2, zdir=zdir, color='darkorange')
+            axes.plot(self._x1, self._y1, zdir=zdir, color='royalblue')
+            axes.plot(self._x2, self._y2, zdir=zdir, color='darkorange')
 
         # plot the arrows showing the velocity at given index
         if plot_v0 is not None:
@@ -345,20 +345,20 @@ class TwoBodyProblem:
                 factor = plot_v0[0]
                 indices = plot_v0[1]
                 for i in indices:
-                    axes.arrow(self.__x1[i], self.__y1[i], factor * self.__vx1[i], factor * self.__vy1[i], width=.05, color='lightsteelblue')
-                    axes.arrow(self.__x2[i], self.__y2[i], factor * self.__vx2[i], factor * self.__vy2[i], width=.05, color='burlywood')
+                    axes.arrow(self._x1[i], self._y1[i], factor * self._vx1[i], factor * self._vy1[i], width=.05, color='lightsteelblue')
+                    axes.arrow(self._x2[i], self._y2[i], factor * self._vx2[i], factor * self._vy2[i], width=.05, color='burlywood')
 
     def _prepare_animating_object(self, axes):
-        line2body1, = axes.plot(self.__x1[0], self.__y1[0], '.', color='navy', markersize=5.0)
-        line2body2, = axes.plot(self.__x2[0], self.__y2[0], '.', color='maroon', markersize=5.0)
+        line2body1, = axes.plot(self._x1[0], self._y1[0], '.', color='navy', markersize=5.0)
+        line2body2, = axes.plot(self._x2[0], self._y2[0], '.', color='maroon', markersize=5.0)
         return [line2body1, line2body2]
 
     def _animation_func(self, frame_index, *animating_artists):
         line2body1 = animating_artists[0]
         line2body2 = animating_artists[1]
 
-        line2body1.set_data([self.__x1[frame_index], self.__y1[frame_index]])
-        line2body2.set_data([self.__x2[frame_index], self.__y2[frame_index]])
+        line2body1.set_data([self._x1[frame_index], self._y1[frame_index]])
+        line2body2.set_data([self._x2[frame_index], self._y2[frame_index]])
 
         return [line2body1, line2body2]
 
@@ -367,11 +367,11 @@ class TwoBodyProblem:
         # if framrate is not given, all frames get rendered (potentially impacting the performance)
         if framerate:
             framestep = int(round(self._sampling_points * rate / (framerate * self._t_end)))
-            frames = range(0, self.__t.shape[0], framestep)
+            frames = range(0, self._t.shape[0], framestep)
             interval = int(round(framestep * 1000 * self._t_end / self._sampling_points / rate))
         else:
             interval = int(round(1000 * self._t_end / self._sampling_points / rate))
-            frames = self.__t.shape[0]
+            frames = self._t.shape[0]
 
         animating_artists = self._prepare_animating_object(axes)
 
