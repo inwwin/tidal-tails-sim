@@ -67,31 +67,31 @@ def two_galaxy_routine(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(prog='python -m tidaltailsim')
     parser.add_argument('r0', type=float,
-                        help='Distance between two massive bodies/galaxies at extremum')
+                        help='distance between two massive bodies/galaxies at extremum')
     parser.add_argument('energy', type=float,
-                        help='Total energy of the two system')
+                        help='total energy of the two system')
     parser.add_argument('time_span', type=float,
-                        help='Total time evolution of the system, with extremum at the centre')
+                        help='total time evolution of the system, with extremum at the centre')
     parser.add_argument('-m', '--mass', nargs=2, type=float, default=[1.0, 1.0],
                         metavar=('mass_1', 'mass_2'))
     parser.add_argument('-rmoff', action='store_true',
-                        help='Don\'t use reduced mass, assume mass_1 >> mass_2')
+                        help='don\'t use reduced mass, assume mass_1 >> mass_2')
     dimension_group = parser.add_mutually_exclusive_group()
     dimension_group.add_argument('-d3', action='store_true',
-                                 help='Force plotting in 3D')
+                                 help='force plotting in 3D')
     dimension_group.add_argument('-d2', action='store_true',
-                                 help='Force plotting in 2D')
+                                 help='force plotting in 2D')
     parser.add_argument('-a', '--animation', nargs='?', type=float, const=1.0, default=None,
                         metavar='speed',
-                        help='Enable animation, with the optionally supplied speed (default 1.0)')
+                        help='enable animation, with the optionally supplied speed (default 1.0)')
     parser.add_argument('-fr', '--framerate', type=float,
                         metavar='fps',
-                        help='Number of frames per second, ignored if -a or --animation is not supplied (default, all sampling points will be rendered)')
+                        help='number of frames per second, ignored if -a or --animation is not supplied (default, all sampling points will be rendered)')
     parser.add_argument('-ao', '--animationout',
                         metavar='file',
-                        help='Render the animation to a file')
+                        help='render the animation to a file')
     parser.add_argument('--nogui', action='store_true',
-                        help='Do not render the result to the display')
+                        help='do not render the result to the display')
 
     subparsers = parser.add_subparsers()
     twobody_parser = subparsers.add_parser('2body')
