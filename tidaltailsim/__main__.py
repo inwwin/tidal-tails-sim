@@ -1,5 +1,6 @@
 from tidaltailsim.two_body_problem import TwoBodyProblem
 from matplotlib import pyplot as plt
+import mpl_toolkits.mplot3d.axes3d as p3
 import argparse
 
 
@@ -8,12 +9,16 @@ def two_body_routine(args):
     # print(problem.angular_momentum)
     problem.solve_problem(10)
     # print(problem.__x1,problem.__y1)
-    fig, ax = plt.subplots()
+    fig, ax = plt.subplots(subplot_kw=dict(projection='3d') if args.d3 else None)
+    # fig = plt.Figure()
+    # ax = fig.add_subplot(projection='3d')
 
-    ax.set_aspect('equal')
-    problem.plot_two_body_paths(ax)  # , plot_v0=(1, [0, 800, 999, 1200, -1]))
+    if not args.d3:
+        ax.set_aspect('equal')
+    problem.plot_two_body_paths(ax, zdir='z' if args.d3 else None)  # , plot_v0=(1, [0, 800, 999, 1200, -1]))
 
     if args.animation:
+
         animation = problem.animate(fig, ax, rate=args.animation, framerate=args.framerate)
 
         if args.out:
@@ -37,6 +42,8 @@ if __name__ == '__main__':
                         metavar=('mass_1', 'mass_2'))
     parser.add_argument('-rmoff', action='store_true',
                         help='Don\'t use reduced mass, assume mass_1 >> mass_2')
+    parser.add_argument('-d3', action='store_true',
+                        help='Plot in 3D')
     parser.add_argument('-a', '--animation', nargs='?', type=float, const=1.0, default=None,
                         metavar='speed',
                         help='Enable animation, with the optional supplied speed (default 1.0)')

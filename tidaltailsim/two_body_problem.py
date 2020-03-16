@@ -1,6 +1,7 @@
 import numpy as np
 from scipy.integrate import solve_ivp
 from matplotlib.animation import FuncAnimation
+from mpl_toolkits.mplot3d.axes3d import Axes3D
 
 
 class TwoBodyProblem:
@@ -230,8 +231,8 @@ class TwoBodyProblem:
         self._angle = self.__phase[2, :]
 
         # convert the momentum into cartesian component from Pr and J
-        self._Px = self.__phase[1, :] * np.cos(self.__angle) - self._J / self.__phase[0, :] * np.sin(self._angle)
-        self._Py = self.__phase[1, :] * np.sin(self.__angle) + self._J / self.__phase[0, :] * np.cos(self._angle)
+        self._Px = self.__phase[1, :] * np.cos(self._angle) - self._J / self.__phase[0, :] * np.sin(self._angle)
+        self._Py = self.__phase[1, :] * np.sin(self._angle) + self._J / self.__phase[0, :] * np.cos(self._angle)
 
         # calculate coordinates with respect to the centre of mass of the system
         if self._use_reduced_mass:
@@ -335,30 +336,34 @@ class TwoBodyProblem:
         if zdir is None:
             axes.plot(self._x1, self._y1, color='royalblue')
             axes.plot(self._x2, self._y2, color='darkorange')
+            # plot the arrows showing the velocity at given index
+            if plot_v0 is tuple:
+                if len(plot_v0) == 2:
+                    factor = plot_v0[0]
+                    indices = plot_v0[1]
+                    for i in indices:
+                        axes.arrow(self._x1[i], self._y1[i], factor * self._vx1[i], factor * self._vy1[i], width=.05, color='lightsteelblue')
+                        axes.arrow(self._x2[i], self._y2[i], factor * self._vx2[i], factor * self._vy2[i], width=.05, color='burlywood')
+
         else:
             axes.plot(self._x1, self._y1, zdir=zdir, color='royalblue')
             axes.plot(self._x2, self._y2, zdir=zdir, color='darkorange')
 
-        # plot the arrows showing the velocity at given index
-        if plot_v0 is not None:
-            if len(plot_v0) == 2:
-                factor = plot_v0[0]
-                indices = plot_v0[1]
-                for i in indices:
-                    axes.arrow(self._x1[i], self._y1[i], factor * self._vx1[i], factor * self._vy1[i], width=.05, color='lightsteelblue')
-                    axes.arrow(self._x2[i], self._y2[i], factor * self._vx2[i], factor * self._vy2[i], width=.05, color='burlywood')
-
     def _prepare_animating_object(self, axes):
-        line2body1, = axes.plot(self._x1[0], self._y1[0], '.', color='navy', markersize=5.0)
-        line2body2, = axes.plot(self._x2[0], self._y2[0], '.', color='maroon', markersize=5.0)
+        line2body1, = axes.plot([self._x1[0]], [self._y1[0]], '.', color='navy', markersize=5.0)
+        line2body2, = axes.plot([self._x2[0]], [self._y2[0]], '.', color='maroon', markersize=5.0)
         return [line2body1, line2body2]
 
     def _animation_func(self, frame_index, *animating_artists):
         line2body1 = animating_artists[0]
         line2body2 = animating_artists[1]
 
-        line2body1.set_data([self._x1[frame_index], self._y1[frame_index]])
-        line2body2.set_data([self._x2[frame_index], self._y2[frame_index]])
+        if hasattr(line2body1, 'set_data_3d'):
+            line2body1.set_data_3d([[self._x1[frame_index]], [self._y1[frame_index]], [0]])
+            line2body2.set_data_3d([[self._x2[frame_index]], [self._y2[frame_index]], [0]])
+        else:
+            line2body1.set_data([[self._x1[frame_index]], [self._y1[frame_index]]])
+            line2body2.set_data([[self._x2[frame_index]], [self._y2[frame_index]]])
 
         return [line2body1, line2body2]
 
@@ -377,7 +382,7 @@ class TwoBodyProblem:
 
         animation = \
             FuncAnimation(figure,
-                          blit=True,
+                          blit=not isinstance(axes, Axes3D),
                           frames=frames,
                           interval=interval,
                           fargs=animating_artists,
