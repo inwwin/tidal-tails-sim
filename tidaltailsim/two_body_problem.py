@@ -121,7 +121,7 @@ class TwoBodyProblem:
         """Calculate first derivative of gravitational potential between the two bodies"""
         return (self._G * self._M1 * self._M2) / r**2
 
-    def _hamilton_eqm(self, t, phase):
+    def _two_body_hamilton_eqm(self, t, phase):
         """
         Calculate system of equations of motion from Hamilton equations
         from the given vectorised points in the phase space
@@ -180,7 +180,7 @@ class TwoBodyProblem:
             raise ValueError('t_end must be positive')
         # Solve the initial value problem to the future
         self._integration_result_future = \
-            solve_ivp(fun=self._hamilton_eqm,
+            solve_ivp(fun=self._two_body_hamilton_eqm,
                       t_span=(0, t_end),  # future
                       t_eval=np.linspace(0, t_end, sampling_points, endpoint=False),
                       y0=self._get_initial_phase(),
@@ -198,7 +198,7 @@ class TwoBodyProblem:
         # (This helps decrrease execution time)
         if self._Pr0 != 0:
             self._integration_result_past = \
-                solve_ivp(fun=self._hamilton_eqm,
+                solve_ivp(fun=self._two_body_hamilton_eqm,
                           t_span=(0, -t_end),  # past
                           t_eval=np.linspace(0, -t_end, sampling_points, endpoint=False),
                           y0=self._get_initial_phase(),
@@ -257,11 +257,16 @@ class TwoBodyProblem:
         self._x2 = self._r2 * np.cos(self._angle)
         self._y2 = self._r2 * np.sin(self._angle)
 
+        self._xyz = np.array([[self._x1, self._y1, 0], [self._x2, self._y2, 0]])
+
     def evaluate_dense_phase_at(self, time):
         """
         evaluate dense Hamilton phase in polar coordinates
         time must be 0d or 1d array
         """
+        if self._integration_result_future is None:
+            raise Exception('No integration result available. Please call solve_two_body_problem first.')
+
         # evaluate dense solution for t<0 and t>=0 separately, and join them back together at the end
         is_past = time < 0
         is_future = time >= 0
@@ -273,29 +278,44 @@ class TwoBodyProblem:
                     phase = self._integration_result_past.sol(time)
                 else:
                     phase = self._integration_result_future.sol(-time)
+                    phase[1] *= -1  # inverse the momentum
+                    phase[2] *= -1  # inverse the angle
             else:
                 phase = self._integration_result_future.sol(time)
         elif np.ndim(time) == 1:
             time_indices = np.indices(time.shape)
 
-            past_indices = time_indices[is_past]
-            future_indices = time_indices[is_future]
-
-            past_time = time[is_past]
-            future_time = time[is_future]
-
-            if self._integration_result_past is not None:
-                past_phase = self._integration_result_past.sol(past_time)
+            if np.all(is_future):
+                phase = self._integration_result_future.sol(time)
+            elif np.all(is_past):
+                if self._integration_result_past is not None:
+                    phase = self._integration_result_past.sol(time)
+                else:
+                    phase = self._integration_result_future.sol(-time)
+                    phase[1] *= -1  # inverse the momentum
+                    phase[2] *= -1  # inverse the angle
+                    # print(time, phase)
             else:
-                past_phase = self._integration_result_future.sol(-past_time)
+                past_indices = time_indices[is_past]
+                future_indices = time_indices[is_future]
 
-            future_phase = self._integration_result_future.sol(future_time)
+                past_time = time[is_past]
+                future_time = time[is_future]
 
-            time_indices_join = np.concatenate((past_indices, future_indices), axis=0)
-            phase_join = np.concatenate((past_phase, future_phase), axis=1)
+                if self._integration_result_past is not None:
+                    past_phase = self._integration_result_past.sol(past_time)
+                else:
+                    past_phase = self._integration_result_future.sol(-past_time)
+                    past_phase[1] *= -1  # inverse the momentum
+                    past_phase[2] *= -1  # inverse the angle
 
-            rank = np.argsort(time_indices_join)
-            phase = phase_join[rank]
+                future_phase = self._integration_result_future.sol(future_time)
+
+                time_indices_join = np.concatenate((past_indices, future_indices), axis=0)
+                phase_join = np.concatenate((past_phase, future_phase), axis=1)
+
+                rank = np.argsort(time_indices_join)
+                phase = phase_join[rank]
         else:
             raise ValueError('time must be either 0d or 1d array')
 
@@ -311,8 +331,8 @@ class TwoBodyProblem:
             r1 = (-self._reduced_mass / self._M1) * phase[0]
             r2 = (+self._reduced_mass / self._M2) * phase[0]
         else:
-            r1 = np.zeros(self._t.shape)
             r2 = phase[0]
+            r1 = np.zeros(r2.shape)
 
         angle = phase[2]
 
@@ -324,11 +344,17 @@ class TwoBodyProblem:
         time must be 1d array
         """
         r1, r2, angle = self.evaluate_dense_polar_coords_at(time)
-        x1 = r1 * np.cos(angle)
-        y1 = r1 * np.sin(angle)
-        x2 = r2 * np.cos(angle)
-        y2 = r2 * np.sin(angle)
-        return ((x1, y1), (x2, y2))
+
+        position_1 = np.zeros((3,) + r1.shape)
+        position_1[0] = r1 * np.cos(angle)
+        position_1[1] = r1 * np.sin(angle)
+        # z1 = np.zeros(x1.shape)
+
+        position_2 = np.zeros((3,) + r2.shape)
+        position_2[0] = r2 * np.cos(angle)
+        position_2[1] = r2 * np.sin(angle)
+        # z2 = np.zeros(x2.shape)
+        return (position_1, position_2)
 
     def plot_two_body_paths(self, axes, zdir='z', plot_v0=None, **kwargs):
 
@@ -351,9 +377,13 @@ class TwoBodyProblem:
 
         return (line1, line2)
 
-    def _prepare_animating_object(self, axes):
-        line2body1, = axes.plot([self._x1[0]], [self._y1[0]], '.', color='navy', markersize=5.0)
-        line2body2, = axes.plot([self._x2[0]], [self._y2[0]], '.', color='maroon', markersize=5.0)
+    def _prepare_animating_object(self, axes, zdir='z'):
+        if hasattr(axes, 'plot3D'):
+            line2body1, = axes.plot3D([self._x1[0]], [self._y1[0]], '.', zdir=zdir, color='navy', markersize=5.0)
+            line2body2, = axes.plot3D([self._x2[0]], [self._y2[0]], '.', zdir=zdir, color='maroon', markersize=5.0)
+        else:
+            line2body1, = axes.plot([self._x1[0]], [self._y1[0]], '.', color='navy', markersize=5.0)
+            line2body2, = axes.plot([self._x2[0]], [self._y2[0]], '.', color='maroon', markersize=5.0)
         return [line2body1, line2body2]
 
     def _animation_func(self, frame_index, *animating_artists):
@@ -369,7 +399,7 @@ class TwoBodyProblem:
 
         return [line2body1, line2body2]
 
-    def animate(self, figure, axes, rate=1.0, framerate=None):
+    def animate(self, figure, axes, zdir='z', rate=1.0, framerate=None):
 
         # if framrate is not given, all frames get rendered (potentially impacting the performance)
         if framerate:
@@ -380,7 +410,7 @@ class TwoBodyProblem:
             interval = int(round(1000 * self._t_end / self._sampling_points / rate))
             frames = self._t.shape[0]
 
-        animating_artists = self._prepare_animating_object(axes)
+        animating_artists = self._prepare_animating_object(axes, zdir)
 
         animation = \
             FuncAnimation(figure,

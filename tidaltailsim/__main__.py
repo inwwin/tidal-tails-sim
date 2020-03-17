@@ -23,7 +23,7 @@ def two_body_routine(args):
 
         animation = problem.animate(fig, ax, rate=args.animation, framerate=args.framerate)
 
-        if args.out:
+        if args.animationout:
             animation.save(args.animationout,
                            progress_callback=lambda i, n: print(f'Saving frame {i} of {n}')
                            )
@@ -36,32 +36,35 @@ def two_body_routine(args):
 
 def two_galaxy_routine(args):
     problem = TwoGalaxyProblem(r0=args.r0, E=args.energy, M1=args.mass[0], M2=args.mass[1], use_reduced_mass=not args.rmoff)
-
+    # problem.M2_feel = 0.
     problem.solve_two_body_problem(args.time_span / 2)
-    radii = np.arange(2, 7)
-    problem.configure_galaxy(1, radii, radii * 6, np.pi / 12, np.pi / 6)
+    radii = np.arange(2, 5)
+    problem.configure_galaxy(1, radii, radii * 12, np.pi / 2, np.pi / 4)
+    problem.solve_two_galaxy_problem()
 
     fig, ax = plt.subplots(subplot_kw=dict(projection='3d') if not args.d2 else None)
     # fig = plt.Figure()
     # ax = fig.add_subplot(projection='3d')
 
+    if args.d2:
+        ax.set_aspect('equal')
     problem.plot_two_body_paths(ax)  # , plot_v0=(1, [0, 800, 999, 1200, -1]))
-    problem.plot_galaxies_initial_positions(ax)
-    plt.show()
+    # problem.plot_galaxies_initial_positions(ax)
+    # plt.show()
 
-    # if args.animation:
+    if args.animation:
 
-    #     animation = problem.animate(fig, ax, rate=args.animation, framerate=args.framerate)
+        animation = problem.animate(fig, ax, rate=args.animation, framerate=args.framerate)
 
-    #     if args.out:
-    #         animation.save(args.animationout,
-    #                        progress_callback=lambda i, n: print(f'Saving frame {i} of {n}')
-    #                        )
-    #     elif not args.nogui:
-    #         plt.show()
-    # else:
-    #     if not args.nogui:
-    #         plt.show()
+        if args.animationout:
+            animation.save(args.animationout,
+                           progress_callback=lambda i, n: print(f'Saving frame {i} of {n}')
+                           )
+        elif not args.nogui:
+            plt.show()
+    else:
+        if not args.nogui:
+            plt.show()
 
 
 if __name__ == '__main__':
