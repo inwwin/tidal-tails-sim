@@ -4,3 +4,4 @@ Features in planning
 * improve docs of two_galaxy_problem
 * additional args for `__main__`
 * allow to pickle the result
+* plot trails of particles
