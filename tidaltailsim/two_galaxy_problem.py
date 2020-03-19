@@ -204,21 +204,12 @@ class TwoGalaxyProblem(TwoBodyProblem):
         posi_diff_powered = np.sum(positional_difference**2, axis=0)**(-1.5)
 
         grad_potential = GM * posi_diff_powered * positional_difference  # broadcast
-        # print(core_mass)
-        # print(evaluating_position)
-        # print(core_position)
-        # print(positional_difference)
-        # print(posi_diff_powered)
-        # print(grad_potential)
-        # print(core_position.shape, evaluating_position.shape, positional_difference.shape, grad_potential.shape)
         return grad_potential
 
     def _unit_test_mass_hamilton_eqm(self, t, state):
         if np.ndim(t) == 0:
             t = np.array([t])
         xyz_core1, xyz_core2 = self.evaluate_dense_cartesian_solution_at(t)
-        # print(t, state, xyz_core1)
-        # print(xyz_core1.shape, state.shape)
         state_d = np.zeros(state.shape)
         state_d[:3, ...] = state[3:, ...]
         state_d[3:, ...] = - self.grad_gravi_potential_feel(self.M1_feel, xyz_core1, state[:3, ...])
@@ -238,14 +229,15 @@ class TwoGalaxyProblem(TwoBodyProblem):
                 orbital_states = np.zeros((orbital.shape[0], 6, self._t.shape[0]), order='F')
                 for i in range(orbital.shape[0]):
                     particle_result = solve_ivp(fun=self._unit_test_mass_hamilton_eqm,
-                                                t_span=(self._t[0], self._t[-1]),  # future
+                                                t_span=(self._t[0], self._t[-1]),
                                                 t_eval=self._t,
                                                 y0=orbital[i, :],
                                                 method='RK23',
                                                 dense_output=False,
                                                 events=events,
                                                 vectorized=True,
-                                                rtol=1e-3)
+                                                rtol=1e-3,
+                                                atol=1e-6)
                     if particle_result.success:
                         orbital_states[i, ...] = particle_result.y
                         if self.verbose:
@@ -253,9 +245,7 @@ class TwoGalaxyProblem(TwoBodyProblem):
                     else:
                         if not self.suppress_error:
                             print("particle#{0:d} orbit#{1:d} galaxy#{3:d} error.\nMessage: {2}".format(i, orbit_index, particle_result.message, galaxy_index))
-                    # if particle_result.success:
-                    # else:
-                    #     print(particle_result)
+
                     orbital_result.append(particle_result)
                 galaxy_result.append(orbital_result)
                 galaxy_states.append(orbital_states)
@@ -281,9 +271,7 @@ class TwoGalaxyProblem(TwoBodyProblem):
         return (lines2body, lines2orbital)
 
     def _animation_func(self, frame_index, *animating_artists):
-        # print(*animating_artists[0])
         lines = super()._animation_func(frame_index, *animating_artists[0])
-        # print(lines)
 
         lines2orbital = animating_artists[1]
         for line, orbital_states in lines2orbital.items():

@@ -7,3 +7,4 @@ tidaltailsim/__pycache__/
 *.pdf
 *.svg
 preliminary/
+matplotlibrc
