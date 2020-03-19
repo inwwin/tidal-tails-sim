@@ -4,73 +4,113 @@ import numpy as np
 from matplotlib import pyplot as plt
 import mpl_toolkits.mplot3d.axes3d as p3
 import argparse
+import pickle
+from os.path import splitext
+from math import floor
 
 
 def two_body_routine(args):
-    problem = TwoBodyProblem(r0=args.r0, E=args.energy, M1=args.mass[0], M2=args.mass[1], G=args.G, use_reduced_mass=not args.rmoff)
-    # print(problem.angular_momentum)
-    problem.solve_two_body_problem(args.time_span / 2)
-    # print(problem.__x1,problem.__y1)
-    fig, ax = plt.subplots(subplot_kw=None if not args.d3 else dict(projection='3d'))
-    # fig = plt.Figure()
-    # ax = fig.add_subplot(projection='3d')
+    problem = TwoBodyProblem(r0=args.extreme_distance, E=args.energy, M1=args.mass[0], M2=args.mass[1], G=args.gravityconst, use_reduced_mass=not args.rmoff)
 
-    if not args.d3:
-        ax.set_aspect('equal')
-    problem.plot_two_body_paths(ax)  # , plot_v0=(1, [0, 800, 999, 1200, -1]))
+    problem.solve_two_body_problem(args.time_span / 2, sampling_points=floor((args.num + 1) / 2))
 
-    if args.animation:
-
-        animation = problem.animate(fig, ax, rate=args.animation, framerate=args.framerate)
-
-        if args.animationout:
-            animation.save(args.animationout,
-                           progress_callback=lambda i, n: print(f'Saving frame {i} of {n}')
-                           )
-        elif not args.nogui:
-            plt.show()
-    else:
-        if not args.nogui:
-            plt.show()
+    parse_animation(args, problem, args.d3)
 
 
 def two_galaxy_routine(args):
-    problem = TwoGalaxyProblem(r0=args.r0, E=args.energy, M1=args.mass[0], M2=args.mass[1], G=args.G, use_reduced_mass=not args.rmoff)
-    # problem.M2_feel = 0.
-    problem.solve_two_body_problem(args.time_span / 2)
-    radii = np.arange(2, 9)
-    problem.configure_galaxy(1, radii, radii * 6, np.pi)
-    problem.solve_two_galaxy_problem()
+    problem = TwoGalaxyProblem(r0=args.extreme_distance, E=args.energy, M1=args.mass[0], M2=args.mass[1], G=args.gravityconst, use_reduced_mass=not args.rmoff)
 
-    fig, ax = plt.subplots(subplot_kw=dict(projection='3d') if not args.d2 else None)
-    ax.set_xlim((-30, 30))
-    ax.set_ylim((-30, 30))
-    # fig = plt.Figure()
-    # ax = fig.add_subplot(projection='3d')
+    problem.verbose = args.verbose
+    problem.suppress_error = args.quiet
 
-    if args.d2:
-        ax.set_aspect('equal')
-    problem.plot_two_body_paths(ax)  # , plot_v0=(1, [0, 800, 999, 1200, -1]))
-    # problem.plot_galaxies_initial_positions(ax)
-    # plt.show()
+    problem.solve_two_body_problem(args.time_span / 2, sampling_points=floor((args.num + 1) / 2))
 
-    if args.animation:
+    radii1 = []
+    particles1 = []
+    for g in args.galaxy1:
+        if g[0] > 0 and round(g[1]) > 0:
+            radii1.append(g[0])
+            particles1.append(int(round(g[1])))
+        else:
+            raise ValueError('radius {0:f} and number of particles {1:f} in -g1/--galaxy1 must be positive'.format(g[0], g[1]))
 
-        animation = problem.animate(fig, ax, rate=args.animation, framerate=args.framerate)
+    radii2 = []
+    particles2 = []
+    for g in args.galaxy2:
+        if g[0] > 0 and round(g[1]) > 0:
+            radii2.append(g[0])
+            particles2.append(int(round(g[1])))
+        else:
+            raise ValueError('radius {0:f} and number of particles {1:f} in -g2/--galaxy2 must be positive'.format(g[0], g[1]))
 
-        if args.animationout:
-            animation.save(args.animationout,
-                           progress_callback=lambda i, n: print(f'Saving frame {i} of {n}')
-                           )
-        elif not args.nogui:
-            plt.show()
-    else:
-        if not args.nogui:
-            plt.show()
+    problem.configure_galaxy(1, np.array(radii1), np.array(particles1, dtype=np.int32), theta=args.g1o[0] * np.pi / 180, phi=args.g1o[1] * np.pi / 180)
+    problem.configure_galaxy(2, np.array(radii2), np.array(particles2, dtype=np.int32), theta=args.g2o[0] * np.pi / 180, phi=args.g2o[1] * np.pi / 180)
+    problem.solve_two_galaxy_problem(atol=args.atol, rtol=args.rtol)
+
+    if args.out is not None:
+        filename, file_extension = splitext(args.out)
+        if not file_extension:
+            filename += '.pkl'
+        else:
+            filename += file_extension
+        with open(filename, 'wb') as o:
+            pickle.dump(problem, o)
+
+    parse_animation(args, problem, not args.d2)
 
 
 def two_galaxy_pickled_routine(args):
-    pass
+    with open(args.path, 'rb') as f:
+        problem = pickle.load(f)
+
+    problem.verbose = args.verbose
+    problem.suppress_error = args.quiet
+
+    parse_animation(args, problem, not args.d2)
+
+
+def parse_animation(args, problem, dimension_is_3):
+    # if not ((args.animationout is None and args.nogui) or
+    #         (args.animationout is not None and args.nogui and args.speed <= 0)):
+    if (not args.nogui) or (args.speed > 0 and args.animationout is not None):
+        fig, ax = plt.subplots(subplot_kw=dict(projection='3d') if dimension_is_3 else None)
+
+        if args.xlim is not None:
+            ax.set_xlim(args.xlim)
+        if args.ylim is not None:
+            ax.set_xlim(args.ylim)
+        if args.zlim is not None:
+            ax.set_xlim(args.zlim)
+
+        if not dimension_is_3:
+            ax.set_aspect('equal')
+        problem.plot_two_body_paths(ax)
+
+        if args.speed > 0:
+
+            animation = problem.animate(fig, ax, rate=args.speed, framerate=args.framerate)
+
+            if args.animationout:
+                if args.nogui:
+                    animation.save(args.animationout,
+                                   progress_callback=lambda i, n: print(f'Saving frame {i} of {n}')
+                                   )
+                elif args.adjustgui:
+                    fig.show()
+                    c = input('Press any key and a return to continue saving the animation output.')
+                    animation.save(args.animationout,
+                                   progress_callback=lambda i, n: print(f'Saving frame {i} of {n}')
+                                   )
+                else:
+                    animation.save(args.animationout,
+                                   progress_callback=lambda i, n: print(f'Saving frame {i} of {n}')
+                                   )
+                    plt.show()
+            elif not args.nogui:
+                plt.show()
+        else:
+            if not args.nogui:
+                plt.show()
 
 
 if __name__ == '__main__':
@@ -88,13 +128,16 @@ if __name__ == '__main__':
     animation_group.add_argument('-s', '--speed', type=float, default=1.0,
                                  metavar='speed',
                                  help='enable animation, with the optionally supplied speed relative to a second, i.e, `speed` time-unit in the simulation = 1 second in the animation. Set to zero to disable animation. (default 1.0)')
-    animation_group.add_argument('-xlim', nargs=2, type=float, default=[None, None],
+    animation_group.add_argument('-fr', '--framerate', type=float,
+                                 metavar='fps',
+                                 help='number of frames per second, ignored if speed=0 (default, all sampling points will be rendered)')
+    animation_group.add_argument('-xlim', nargs=2, type=float,
                                  metavar=('lower', 'upper'),
                                  help='manually set the limit of the x-axis')
-    animation_group.add_argument('-ylim', nargs=2, type=float, default=[None, None],
+    animation_group.add_argument('-ylim', nargs=2, type=float,
                                  metavar=('lower', 'upper'),
                                  help='manually set the limit of the y-axis')
-    animation_group.add_argument('-zlim', nargs=2, type=float, default=[None, None],
+    animation_group.add_argument('-zlim', nargs=2, type=float,
                                  metavar=('lower', 'upper'),
                                  help='manually set the limit of the z-axis')
     dimension_group = animation_group.add_mutually_exclusive_group()
@@ -102,16 +145,12 @@ if __name__ == '__main__':
                                  help='force plotting in 3D projection')
     dimension_group.add_argument('-d2', action='store_true',
                                  help='force plotting in 2D projection into x-y plane')
-    animation_group.add_argument('-fr', '--framerate', type=float,
-                                 metavar='fps',
-                                 help='number of frames per second, ignored if speed=0 (default, all sampling points will be rendered)')
     animation_group.add_argument('-ao', '--animationout',
                                  metavar='file',
                                  help='render the animation to a file, ignored if speed=0 (support extensions depend on your system settings, .htm should be okay most of the time, please consult matplotlib documentation)')
-
     gui_group = animation_group.add_mutually_exclusive_group()
     gui_group.add_argument('--adjustgui', action='store_true',
-                           help='use the gui to zoom/adjust perspective first before saving. When this option is flagged, after the gui shows up, you will have a chance to use your mouse to adjust the plot. When you are done, return to console, and type \'c\' to continue.')
+                           help='use the gui to zoom/adjust perspective first before saving. When this option is flagged, after the gui shows up, you will have a chance to use your mouse to adjust the plot. When you are done, return to console, and type any key to continue.')
     gui_group.add_argument('--nogui', action='store_true',
                            help='do not render the result to the display screen. Useful if you want to view the resulting video only but you will not be able to manually zoom/adjust the perspective')
 
@@ -130,7 +169,7 @@ if __name__ == '__main__':
         general_group = _parser.add_argument_group(title='general simulation parameters')
         general_group.add_argument('time_span', type=float,
                                    help='total time evolution of the system, with extremum in the middle')
-        general_group.add_argument('-n', '--num', type=float,
+        general_group.add_argument('-n', '--num', type=int, default=1999,
                                    metavar='points',
                                    help="Number of sampling points to simulate within the time_span (default 1999 points)")
         general_group.add_argument('--gravityconst', action='store', type=float, default=1.0,
@@ -138,9 +177,9 @@ if __name__ == '__main__':
                                    help='specify the value of the gravitational constant (default 1.0)')
         if _parser is twogalaxy_parser:
             general_group.add_argument('-rtol', type=float, default=1e-3,
-                                       help='relative tolorance to be supplied to the solve_ivp function')
+                                       help='relative tolorance to be supplied to the solve_ivp function (default 1e-3)')
             general_group.add_argument('-atol', type=float, default=1e-6,
-                                       help='absolute tolorance to be supplied to the solve_ivp function')
+                                       help='absolute tolorance to be supplied to the solve_ivp function (default 1e-6)')
 
         sim_group = _parser.add_argument_group(title='two-body simulation parameters',
                                                description='The parameters of the simulation relating to the trajectory of the two bodies (in 2body subcommand) or of the two cores (in 2galaxy subcommand)')

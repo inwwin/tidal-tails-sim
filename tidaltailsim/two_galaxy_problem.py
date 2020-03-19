@@ -217,7 +217,7 @@ class TwoGalaxyProblem(TwoBodyProblem):
 
         return state_d
 
-    def solve_two_galaxy_problem(self, events=None):
+    def solve_two_galaxy_problem(self, *args):
         if not hasattr(self, '_t'):
             raise Exception("No time domain exists. Please call solve_two_body_problem first.")
 
@@ -234,10 +234,8 @@ class TwoGalaxyProblem(TwoBodyProblem):
                                                 y0=orbital[i, :],
                                                 method='RK23',
                                                 dense_output=False,
-                                                events=events,
                                                 vectorized=True,
-                                                rtol=1e-3,
-                                                atol=1e-6)
+                                                *args)
                     if particle_result.success:
                         orbital_states[i, ...] = particle_result.y
                         if self.verbose:
