@@ -11,6 +11,12 @@ class TwoGalaxyProblem(TwoBodyProblem):
     and stars modelled as 'massless' particles orbiting the massive cores
     (massless in the sense that they don't cause perturbation
     to the gravitational field of the system)
+
+    Reamrk:
+    The Hamiltonian of this problem is
+    1/2 * (px^2 + py^2 + pz^2) + V1(r-r1(t)) + V2(r-r2(t))
+    where px, py, pz is the velocity
+    and Vi is the potential due to the core of the galaxy i locating at ri(t)
     """
 
     def __init__(self, r0, r0d=0, E=0, J=None, G=1.0, M1=1.0, M2=1.0, use_reduced_mass=True):
@@ -61,6 +67,7 @@ class TwoGalaxyProblem(TwoBodyProblem):
 
     @property
     def verbose(self):
+        """Should the solver print message to the console, each time it successfully run solve_ivp"""
         return self._verbose
 
     @verbose.setter
@@ -72,6 +79,7 @@ class TwoGalaxyProblem(TwoBodyProblem):
 
     @property
     def suppress_error(self):
+        """Should the solver print message to the console, each time it fails running solve_ivp"""
         return self._suppress_error
 
     @suppress_error.setter
@@ -173,6 +181,7 @@ class TwoGalaxyProblem(TwoBodyProblem):
             self._galaxy2_initial_condition = galaxy_initial_condition
 
     def plot_galaxies_initial_positions(self, axes, zdir='z'):
+        """Plot the initial position of particles in both galaxies"""
         for ic in self._galaxy1_initial_condition:
             if hasattr(axes, 'plot3D'):
                 axes.plot3D(ic[:, 0], ic[:, 1], ic[:, 2], '.', zdir=zdir, color='skyblue')
@@ -207,6 +216,22 @@ class TwoGalaxyProblem(TwoBodyProblem):
         return grad_potential
 
     def _unit_test_mass_hamilton_eqm(self, t, state):
+        """
+        Calculate the Hamilton equation in cartesian coordinate,
+        to be used in solve_ivp (vectorised)
+
+        state is a (6, k) array representing the state of a particle
+        in the first dimension:
+        0, 1, 2 represents the x, y, z location of the particle
+        3, 4, 5 represents the x, y, z velocity of the particle
+
+        Reamrk:
+        The Hamiltonian of this problem is
+        1/2 * (px^2 + py^2 + pz^2) + V1(r-r1(t)) + V2(r-r2(t))
+        where px, py, pz is the velocity
+        and Vi is the potential due to the core of the galaxy i locating at ri(t)
+        (we take the conjugate momentum to be the velocity)
+        """
         if np.ndim(t) == 0:
             t = np.array([t])
         xyz_core1, xyz_core2 = self.evaluate_dense_cartesian_solution_at(t)
@@ -218,6 +243,11 @@ class TwoGalaxyProblem(TwoBodyProblem):
         return state_d
 
     def solve_two_galaxy_problem(self, **kwargs):
+        """
+        looping through all particles initialised in each galaxy and use
+        solve_ivp to calculate their trajectories within the time domain
+        from solve_two_body_problem of the parent class
+        """
         if not hasattr(self, '_t'):
             raise Exception("No time domain exists. Please call solve_two_body_problem first.")
 
@@ -254,7 +284,7 @@ class TwoGalaxyProblem(TwoBodyProblem):
 
         return (self._galaxy1_result, self._galaxy2_result)
 
-    def _prepare_animating_object(self, axes, zdir='z'):
+    def _prepare_animating_object(self, axes, trail=0., zdir='z'):
         lines2body = super()._prepare_animating_object(axes, zdir)
         lines2orbital = dict()
         for galaxy_index, hue in zip(range(1, 3), (218 / 360, 34 / 360)):
@@ -262,6 +292,10 @@ class TwoGalaxyProblem(TwoBodyProblem):
             for orbital_states, sat in zip(galaxy_states, np.linspace(1, 0.3, len(galaxy_states))):
                 if hasattr(axes, 'plot3D'):
                     line, = axes.plot3D(orbital_states[:, 0, 0], orbital_states[:, 1, 0], orbital_states[:, 2, 0], '.', zdir=zdir, color=hsv_to_rgb((hue, sat, 1)), markersize=3.0)
+                    # if trail != 0:
+                    #     indices_count = int(round(self._sampling_points / self._t_end * trail))
+                    #     for i in range(orbital_states.shape[0]):
+                    #         line_trail, = axes.plot3D([orbital_states[i, 0, 0]], [orbital_states[i, 1, 0]], [orbital_states[i, 2, 0]], zdir=zdir, color=hsv_to_rgb((hue, sat, 1)))
                 else:
                     line, = axes.plot(orbital_states[:, 0, 0], orbital_states[:, 1, 0], '.', color=hsv_to_rgb((hue, sat, 1)), markersize=3.0)
                 lines2orbital[line] = orbital_states
