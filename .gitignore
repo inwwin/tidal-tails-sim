@@ -2,6 +2,7 @@
 
 tidal-tails-sim.sublime-workspace
 tidaltailsim/__pycache__/
+*.pkl
 *.mp4
 *.png
 *.pdf

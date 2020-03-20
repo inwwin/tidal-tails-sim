@@ -33,18 +33,19 @@ def two_galaxy_routine(args):
             particles1.append(int(round(g[1])))
         else:
             raise ValueError('radius {0:f} and number of particles {1:f} in -g1/--galaxy1 must be positive'.format(g[0], g[1]))
+    problem.configure_galaxy(1, np.array(radii1), np.array(particles1, dtype=np.int32), theta=args.galaxy1orient[0] * np.pi / 180, phi=args.galaxy1orient[1] * np.pi / 180)
 
     radii2 = []
     particles2 = []
-    for g in args.galaxy2:
-        if g[0] > 0 and round(g[1]) > 0:
-            radii2.append(g[0])
-            particles2.append(int(round(g[1])))
-        else:
-            raise ValueError('radius {0:f} and number of particles {1:f} in -g2/--galaxy2 must be positive'.format(g[0], g[1]))
+    if args.galaxy2 is not None:
+        for g in args.galaxy2:
+            if g[0] > 0 and round(g[1]) > 0:
+                radii2.append(g[0])
+                particles2.append(int(round(g[1])))
+            else:
+                raise ValueError('radius {0:f} and number of particles {1:f} in -g2/--galaxy2 must be positive'.format(g[0], g[1]))
+        problem.configure_galaxy(2, np.array(radii2), np.array(particles2, dtype=np.int32), theta=args.galaxy2orient[0] * np.pi / 180, phi=args.galaxy2orient[1] * np.pi / 180)
 
-    problem.configure_galaxy(1, np.array(radii1), np.array(particles1, dtype=np.int32), theta=args.g1o[0] * np.pi / 180, phi=args.g1o[1] * np.pi / 180)
-    problem.configure_galaxy(2, np.array(radii2), np.array(particles2, dtype=np.int32), theta=args.g2o[0] * np.pi / 180, phi=args.g2o[1] * np.pi / 180)
     problem.solve_two_galaxy_problem(atol=args.atol, rtol=args.rtol)
 
     if args.out is not None:
@@ -55,6 +56,8 @@ def two_galaxy_routine(args):
             filename += file_extension
         with open(filename, 'wb') as o:
             pickle.dump(problem, o)
+        if args.verbose:
+            print('Solution of two-galaxy problem saved to {0}'.format(filename))
 
     parse_animation(args, problem, not args.d2)
 
@@ -78,12 +81,14 @@ def parse_animation(args, problem, dimension_is_3):
         if args.xlim is not None:
             ax.set_xlim(args.xlim)
         if args.ylim is not None:
-            ax.set_xlim(args.ylim)
-        if args.zlim is not None:
-            ax.set_xlim(args.zlim)
+            ax.set_ylim(args.ylim)
+        if dimension_is_3:
+            if args.zlim is not None:
+                ax.set_zlim(args.zlim)
 
         if not dimension_is_3:
             ax.set_aspect('equal')
+
         problem.plot_two_body_paths(ax)
 
         if args.speed > 0:
@@ -93,18 +98,18 @@ def parse_animation(args, problem, dimension_is_3):
             if args.animationout:
                 if args.nogui:
                     animation.save(args.animationout,
-                                   progress_callback=lambda i, n: print(f'Saving frame {i} of {n}')
-                                   )
+                                   progress_callback=lambda i, n: print(f'Saving frame {i} of {n}', end='\r'))
+                    print('Animation saved to {0}'.format(args.animationout))
                 elif args.adjustgui:
                     fig.show()
-                    c = input('Press any key and a return to continue saving the animation output.')
+                    input('When you finish adjusting the plot in the GUI, return here and press return before closing the window, to continue saving the animation output.')
                     animation.save(args.animationout,
-                                   progress_callback=lambda i, n: print(f'Saving frame {i} of {n}')
-                                   )
+                                   progress_callback=lambda i, n: print(f'Saving frame {i} of {n}', end='\r'))
+                    print('Animation saved to {0}'.format(args.animationout))
                 else:
                     animation.save(args.animationout,
-                                   progress_callback=lambda i, n: print(f'Saving frame {i} of {n}')
-                                   )
+                                   progress_callback=lambda i, n: print(f'Saving frame {i} of {n}', end='\r'))
+                    print('Animation saved to {0}'.format(args.animationout))
                     plt.show()
             elif not args.nogui:
                 plt.show()
@@ -200,10 +205,10 @@ if __name__ == '__main__':
     twogalaxy_param_group.add_argument('-g2', '--galaxy2', nargs=2, type=float, action='append',
                                        metavar=('distance_from_core', 'stars_number'),
                                        help='add `stars_number` evenly-spaceing circularly-orbiting particles to galaxy2 at a distance `distance_from_core` away from the core. `stars_number` should be an integer. (this argument can be parsed multiple times to add multiple orbits)')
-    twogalaxy_param_group.add_argument('-g1o', '--galaxy1orient', nargs=2, type=float,
+    twogalaxy_param_group.add_argument('-g1o', '--galaxy1orient', nargs=2, type=float, default=[0.0, 0.0],
                                        metavar=('theta', 'phi'),
                                        help='specify the orientation of the galaxy1\'s galactic plane with respect to the to the two-core collision plane. The galactic plane is first created in the collision plane and then rotated along x-axis by theta and along z-axis by phi. theta and phi must be given in degrees. (default 0.0 0.0)')
-    twogalaxy_param_group.add_argument('-g2o', '--galaxy2orient', nargs=2, type=float,
+    twogalaxy_param_group.add_argument('-g2o', '--galaxy2orient', nargs=2, type=float, default=[0.0, 0.0],
                                        metavar=('theta', 'phi'),
                                        help='specify the orientation of the galaxy2\'s galactic plane with respect to the to the two-core collision plane. The galactic plane is first created in the collision plane and then rotated along x-axis by theta and along z-axis by phi. theta and phi must be given in degrees. (default 0.0 0.0)')
 

@@ -217,7 +217,7 @@ class TwoGalaxyProblem(TwoBodyProblem):
 
         return state_d
 
-    def solve_two_galaxy_problem(self, *args):
+    def solve_two_galaxy_problem(self, **kwargs):
         if not hasattr(self, '_t'):
             raise Exception("No time domain exists. Please call solve_two_body_problem first.")
 
@@ -235,7 +235,7 @@ class TwoGalaxyProblem(TwoBodyProblem):
                                                 method='RK23',
                                                 dense_output=False,
                                                 vectorized=True,
-                                                *args)
+                                                **kwargs)
                     if particle_result.success:
                         orbital_states[i, ...] = particle_result.y
                         if self.verbose:
@@ -261,9 +261,9 @@ class TwoGalaxyProblem(TwoBodyProblem):
             galaxy_states = getattr(self, '_galaxy{0:d}_states'.format(galaxy_index))
             for orbital_states, sat in zip(galaxy_states, np.linspace(1, 0.3, len(galaxy_states))):
                 if hasattr(axes, 'plot3D'):
-                    line, = axes.plot3D(orbital_states[:, 0, 0], orbital_states[:, 1, 0], orbital_states[:, 2, 0], '.:', zdir=zdir, color=hsv_to_rgb((hue, sat, 1)), markersize=3.0)
+                    line, = axes.plot3D(orbital_states[:, 0, 0], orbital_states[:, 1, 0], orbital_states[:, 2, 0], '.', zdir=zdir, color=hsv_to_rgb((hue, sat, 1)), markersize=3.0)
                 else:
-                    line, = axes.plot(orbital_states[:, 0, 0], orbital_states[:, 1, 0], '.:', color=hsv_to_rgb((hue, sat, 1)), markersize=3.0)
+                    line, = axes.plot(orbital_states[:, 0, 0], orbital_states[:, 1, 0], '.', color=hsv_to_rgb((hue, sat, 1)), markersize=3.0)
                 lines2orbital[line] = orbital_states
 
         return (lines2body, lines2orbital)
