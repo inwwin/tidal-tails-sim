@@ -404,11 +404,17 @@ class TwoBodyProblem:
         # if framrate is not given, all frames get rendered (potentially impacting the performance)
         if framerate:
             framestep = int(round(self._sampling_points * rate / (framerate * self._t_end)))
-            frames = range(0, self._t.shape[0], framestep)
             interval = int(round(framestep * 1000 * self._t_end / self._sampling_points / rate))
+            if interval <= 0:
+                return (None, 0.)  # The supplied parameter means the animation is too slow that there is not enough data
+            frames = range(0, self._t.shape[0], framestep)
+            actual_rate = 1000.0 * framestep * self._t_end / interval / self._sampling_points
         else:
             interval = int(round(1000 * self._t_end / self._sampling_points / rate))
+            if interval <= 0:
+                return (None, 0.)  # The supplied parameter means the animation is too slow that there is not enough data
             frames = self._t.shape[0]
+            actual_rate = 1000.0 * self._t_end / interval / self._sampling_points
 
         animating_artists = self._prepare_animating_object(axes, zdir)
 
@@ -420,4 +426,4 @@ class TwoBodyProblem:
                           fargs=animating_artists,
                           func=self._animation_func)
 
-        return animation
+        return (animation, actual_rate)

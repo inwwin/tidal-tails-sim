@@ -93,26 +93,33 @@ def parse_animation(args, problem, dimension_is_3):
 
         if args.speed > 0:
 
-            animation = problem.animate(fig, ax, rate=args.speed, framerate=args.framerate)
+            animation, actual_rate = problem.animate(fig, ax, rate=args.speed, framerate=args.framerate)
 
-            if args.animationout:
-                if args.nogui:
-                    animation.save(args.animationout,
-                                   progress_callback=lambda i, n: print(f'Saving frame {i} of {n}', end='\r'))
-                    print('Animation saved to {0}'.format(args.animationout))
-                elif args.adjustgui:
-                    fig.show()
-                    input('When you finish adjusting the plot in the GUI, return here and press return before closing the window, to continue saving the animation output.')
-                    animation.save(args.animationout,
-                                   progress_callback=lambda i, n: print(f'Saving frame {i} of {n}', end='\r'))
-                    print('Animation saved to {0}'.format(args.animationout))
-                else:
-                    animation.save(args.animationout,
-                                   progress_callback=lambda i, n: print(f'Saving frame {i} of {n}', end='\r'))
-                    print('Animation saved to {0}'.format(args.animationout))
+            if animation is None:
+                if not args.quiet:
+                    print('Data not enough to render animation at this speed/framerate combination.')
+            else:
+                if args.verbose:
+                    print(f'Animation prepared.\nThe actual speed of the animation is {actual_rate} simulation time-unit = 1 animation second')
+
+                if args.animationout:
+                    if args.nogui:
+                        animation.save(args.animationout,
+                                       progress_callback=lambda i, n: print(f'Saving frame {i} of {n}', end='\r'))
+                        print('Animation saved to {0}'.format(args.animationout))
+                    elif args.adjustgui:
+                        fig.show()
+                        input('When you finish adjusting the plot in the GUI, return here and press return before closing the window, to continue saving the animation output.')
+                        animation.save(args.animationout,
+                                       progress_callback=lambda i, n: print(f'Saving frame {i} of {n}', end='\r'))
+                        print('Animation saved to {0}'.format(args.animationout))
+                    else:
+                        animation.save(args.animationout,
+                                       progress_callback=lambda i, n: print(f'Saving frame {i} of {n}', end='\r'))
+                        print('Animation saved to {0}'.format(args.animationout))
+                        plt.show()
+                elif not args.nogui:
                     plt.show()
-            elif not args.nogui:
-                plt.show()
         else:
             if not args.nogui:
                 plt.show()
