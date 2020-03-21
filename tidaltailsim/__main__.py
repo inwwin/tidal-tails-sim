@@ -159,7 +159,11 @@ if __name__ == '__main__':
     gui_group.add_argument('--nogui', action='store_true',
                            help='do not render the result to the display screen. Useful if you want to view the resulting video only but you will not be able to manually zoom/adjust the perspective')
 
-    subparsers = parser.add_subparsers(title='mode of operation', required=True)
+    # This required Python 3.7, since MCS use Python 3.6.9, it is disabled
+    # subparsers = parser.add_subparsers(title='mode of operation', required=True)
+    # This is a workaroun
+    subparsers = parser.add_subparsers(title='mode of operation')
+
     twobody_parser = subparsers.add_parser('2body', help='solve two-body problem only')
     # twobody_parser.add_argument('-d', '--dimension', choices=['2d', '3d'], default='2d', help='Select the display dimension')
     twobody_parser.set_defaults(func=two_body_routine)
@@ -219,4 +223,9 @@ if __name__ == '__main__':
     twogalaxy_pickled_parser.add_argument('path', help='the two-galaxy collision problem file to be imported')
 
     args = parser.parse_args()
-    args.func(args)
+
+    # Add more logic to handle the workaround for Python 3.6.9
+    if args.func:
+        args.func(args)
+    else:
+        print('Please specify the subcommand 2body, 2galaxy, or 2galaxy_fromfile')
