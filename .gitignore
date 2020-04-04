@@ -1,7 +1,7 @@
 # Specify filepatterns you want git to ignore.
 
 tidal-tails-sim.sublime-workspace
-tidaltailsim/__pycache__/
+*/__pycache__/
 *.pkl
 *.mp4
 *.png

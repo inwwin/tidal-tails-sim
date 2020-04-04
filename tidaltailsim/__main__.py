@@ -103,18 +103,23 @@ def parse_animation(args, problem, dimension_is_3):
                     print(f'Animation prepared.\nThe actual speed of the animation is {actual_rate} simulation time-unit = 1 animation second')
 
                 if args.animationout:
+                    if args.animationwriter:
+                        writer = args.animationwriter
+                    else:
+                        writer = None
+
                     if args.nogui:
-                        animation.save(args.animationout,
+                        animation.save(args.animationout, writer=writer,
                                        progress_callback=lambda i, n: print(f'Saving frame {i} of {n}', end='\r'))
                         print('Animation saved to {0}'.format(args.animationout))
                     elif args.adjustgui:
                         fig.show()
                         input('When you finish adjusting the plot in the GUI, return here and press return before closing the window, to continue saving the animation output.')
-                        animation.save(args.animationout,
+                        animation.save(args.animationout, writer=writer,
                                        progress_callback=lambda i, n: print(f'Saving frame {i} of {n}', end='\r'))
                         print('Animation saved to {0}'.format(args.animationout))
                     else:
-                        animation.save(args.animationout,
+                        animation.save(args.animationout, writer=writer,
                                        progress_callback=lambda i, n: print(f'Saving frame {i} of {n}', end='\r'))
                         print('Animation saved to {0}'.format(args.animationout))
                         plt.show()
@@ -160,6 +165,9 @@ if __name__ == '__main__':
     animation_group.add_argument('-ao', '--animationout',
                                  metavar='file',
                                  help='render the animation to a file, ignored if speed=0 (support extensions depend on your system settings, .htm should be okay most of the time, please consult matplotlib documentation)')
+    animation_group.add_argument('-aw', '--animationwriter',
+                                 metavar='writer',
+                                 help='the animation writer backend to be parsed to the animation.save function of matplotlib (default to the value given in matplotlibrc property animation.writer)')
     gui_group = animation_group.add_mutually_exclusive_group()
     gui_group.add_argument('--adjustgui', action='store_true',
                            help='use the gui to zoom/adjust perspective first before saving. When this option is flagged, after the gui shows up, you will have a chance to use your mouse to adjust the plot. When you are done, return to console, and type any key to continue.')
