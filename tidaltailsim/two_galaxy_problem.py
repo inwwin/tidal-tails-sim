@@ -32,6 +32,9 @@ class TwoGalaxyProblem(TwoBodyProblem):
         self._galaxy1_initial_condition = []
         self._galaxy2_initial_condition = []
 
+        self._galaxy1_orbital_info = None
+        self._galaxy2_orbital_info = None
+
         self.verbose = True
         self.suppress_error = False
 
@@ -64,6 +67,16 @@ class TwoGalaxyProblem(TwoBodyProblem):
             self._M2_feel = value
         else:
             raise TypeError('A mass must be floating number')
+
+    @property
+    def galaxy1_orbital_orientation(self):
+        """Returns a dictionary describing the orbital configuration of galaxy1"""
+        return self._galaxy1_orbital_orientation
+
+    @property
+    def galaxy2_orbital_orientation(self):
+        """Returns a dictionary describing the orbital configuration of galaxy2"""
+        return self._galaxy2_orbital_orientation
 
     @property
     def verbose(self):
@@ -179,6 +192,16 @@ class TwoGalaxyProblem(TwoBodyProblem):
             self._galaxy1_initial_condition = galaxy_initial_condition
         else:
             self._galaxy2_initial_condition = galaxy_initial_condition
+
+        orbital_orientation = {
+            'theta': theta,
+            'phi': phi
+            # 'radii': orbital_radius,
+            # 'particles_numbers': orbital_particles,
+            # 'orbital_particle_numbers': dict(zip(orbital_radius, orbital_particles))
+        }
+
+        setattr(self, '_galaxy{0:d}_orbital_orientation'.format(galaxy_index), orbital_orientation)
 
     def plot_galaxies_initial_positions(self, axes, zdir='z'):
         """Plot the initial position of particles in both galaxies"""
