@@ -35,6 +35,9 @@ class TwoGalaxyProblem(TwoBodyProblem):
         self._galaxy1_orbital_info = None
         self._galaxy2_orbital_info = None
 
+        self._galaxy1_orbitals_properties = []
+        self._galaxy2_orbitals_properties = []
+
         self.verbose = True
         self.suppress_error = False
 
@@ -77,6 +80,16 @@ class TwoGalaxyProblem(TwoBodyProblem):
     def galaxy2_orbital_orientation(self):
         """Returns a dictionary describing the orbital configuration of galaxy2"""
         return self._galaxy2_orbital_orientation
+
+    @property
+    def galaxy1_orbitals_properties(self):
+        """Returns a list of properties and states of each orbital in galaxy1"""
+        return self._galaxy1_orbitals_properties
+
+    @property
+    def galaxy2_orbitals_properties(self):
+        """Returns a list of properties and states of each orbital in galaxy2"""
+        return self._galaxy2_orbitals_properties
 
     @property
     def verbose(self):
@@ -196,12 +209,18 @@ class TwoGalaxyProblem(TwoBodyProblem):
         orbital_orientation = {
             'theta': theta,
             'phi': phi
-            # 'radii': orbital_radius,
-            # 'particles_numbers': orbital_particles,
-            # 'orbital_particle_numbers': dict(zip(orbital_radius, orbital_particles))
         }
 
         setattr(self, '_galaxy{0:d}_orbital_orientation'.format(galaxy_index), orbital_orientation)
+
+        orbitals_properties = list(
+            map(lambda radius, particle_number: {
+                'radius': radius,
+                'particle_number': particle_number
+            }, orbital_radius, orbital_particles)
+        )
+
+        setattr(self, '_galaxy{0:d}_orbitals_properties'.format(galaxy_index), orbitals_properties)
 
     def plot_galaxies_initial_positions(self, axes, zdir='z'):
         """Plot the initial position of particles in both galaxies"""
@@ -274,10 +293,11 @@ class TwoGalaxyProblem(TwoBodyProblem):
         if not hasattr(self, '_t'):
             raise Exception("No time domain exists. Please call solve_two_body_problem first.")
 
-        for galaxy_index, ics in [(1, self._galaxy1_initial_condition), (2, self._galaxy2_initial_condition)]:
+        for galaxy_index, ics, orbitals_properties in [(1, self._galaxy1_initial_condition, self._galaxy1_orbitals_properties),
+                                                       (2, self._galaxy2_initial_condition, self._galaxy2_orbitals_properties)]:
             galaxy_result = []
             galaxy_states = []
-            for orbital, orbit_index in zip(ics, range(len(ics))):
+            for orbital, orbital_property, orbit_index in zip(ics, orbitals_properties, range(len(ics))):
                 orbital_result = []
                 orbital_states = np.zeros((orbital.shape[0], 6, self._t.shape[0]), order='F')
                 for i in range(orbital.shape[0]):
@@ -300,6 +320,7 @@ class TwoGalaxyProblem(TwoBodyProblem):
                     orbital_result.append(particle_result)
                 galaxy_result.append(orbital_result)
                 galaxy_states.append(orbital_states)
+                orbital_property['states'] = orbital_states
 
             # save the result to attr _galaxy1_result or _galaxy1_result depending on the galaxy_index
             setattr(self, '_galaxy{0:d}_result'.format(galaxy_index), galaxy_result)
