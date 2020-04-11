@@ -220,7 +220,7 @@ class TwoGalaxyProblem(TwoBodyProblem):
         Calculate the Hamilton equation in cartesian coordinate,
         to be used in solve_ivp (vectorised)
 
-        state is a (6, k) array representing the state of a particle
+        state is (6, k) array representing the state of a particle
         in the first dimension:
         0, 1, 2 represents the x, y, z location of the particle
         3, 4, 5 represents the x, y, z velocity of the particle
@@ -256,11 +256,11 @@ class TwoGalaxyProblem(TwoBodyProblem):
             galaxy_states = []
             for orbital, orbit_index in zip(ics, range(len(ics))):
                 orbital_result = []
-                orbital_states = np.zeros((orbital.shape[0], 6, self._t.shape[0]), order='F')
+                orbital_states = np.zeros((orbital.shape[0], 6, self.time_domain.shape[0]), order='F')
                 for i in range(orbital.shape[0]):
                     particle_result = solve_ivp(fun=self._unit_test_mass_hamilton_eqm,
-                                                t_span=(self._t[0], self._t[-1]),
-                                                t_eval=self._t,
+                                                t_span=(self.time_domain[0], self.time_domain[-1]),
+                                                t_eval=self.time_domain,
                                                 y0=orbital[i, :],
                                                 method='RK23',
                                                 dense_output=False,

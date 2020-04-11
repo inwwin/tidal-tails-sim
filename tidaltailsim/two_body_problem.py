@@ -217,10 +217,10 @@ class TwoBodyProblem:
     def _process_integration_result(self):
         # join past and future solution
         if self._integration_result_past is not None:
-            self._t = np.concatenate((self._integration_result_past.t[:0:-1], self._integration_result_future.t))
+            self.time_domain = np.concatenate((self._integration_result_past.t[:0:-1], self._integration_result_future.t))
             self.__phase = np.concatenate((self._integration_result_past.y[:, :0:-1], self._integration_result_future.y), axis=1)
         else:
-            self._t = np.concatenate((-1 * self._integration_result_future.t[:0:-1], self._integration_result_future.t))
+            self.time_domain = np.concatenate((-1 * self._integration_result_future.t[:0:-1], self._integration_result_future.t))
             past_y = np.copy(self._integration_result_future.y[:, :0:-1])
             past_y[1, :] *= -1  # inverse the momentum
             past_y[2, :] *= -1  # inverse the angle
@@ -242,11 +242,11 @@ class TwoBodyProblem:
             self._vx1 = -self._Px / self._M1
             self._vy1 = -self._Py / self._M1
         else:
-            self._r1 = np.zeros(self._t.shape)
+            self._r1 = np.zeros(self.time_domain.shape)
             self._r2 = np.copy(self.__phase[0, :])
 
-            self._vx1 = np.zeros(self._t.shape)
-            self._vy1 = np.zeros(self._t.shape)
+            self._vx1 = np.zeros(self.time_domain.shape)
+            self._vy1 = np.zeros(self.time_domain.shape)
 
         self._vy2 = +self._Py / self._M2
         self._vx2 = +self._Px / self._M2
@@ -407,13 +407,13 @@ class TwoBodyProblem:
             interval = int(round(framestep * 1000 * self._t_end / self._sampling_points / rate))
             if interval <= 0:
                 return (None, 0.)  # The supplied parameter means the animation is too slow that there is not enough data
-            frames = range(0, self._t.shape[0], framestep)
+            frames = range(0, self.time_domain.shape[0], framestep)
             actual_rate = 1000.0 * framestep * self._t_end / interval / self._sampling_points
         else:
             interval = int(round(1000 * self._t_end / self._sampling_points / rate))
             if interval <= 0:
                 return (None, 0.)  # The supplied parameter means the animation is too slow that there is not enough data
-            frames = self._t.shape[0]
+            frames = self.time_domain.shape[0]
             actual_rate = 1000.0 * self._t_end / interval / self._sampling_points
 
         animating_artists = self._prepare_animating_object(axes, zdir)
