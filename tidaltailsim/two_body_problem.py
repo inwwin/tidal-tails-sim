@@ -108,6 +108,22 @@ class TwoBodyProblem:
     def angular_momentum(self):
         return self._J
 
+    @property
+    def time_domain(self):
+        return self._t
+
+    @property
+    def time_end(self):
+        return self._t_end
+
+    @property
+    def cartesian_coordinates_evolution(self):
+        return self._xyz
+
+    @property
+    def cartesian_velocity_evolution(self):
+        return self._vxyz
+
     @staticmethod
     def calculate_reduced_mass(Ms):
         Ms = np.array(Ms)
@@ -258,6 +274,7 @@ class TwoBodyProblem:
         self._y2 = self._r2 * np.sin(self._angle)
 
         self._xyz = np.array([[self._x1, self._y1, 0], [self._x2, self._y2, 0]])
+        self._vxyz = np.array([[self._vx1, self._vy1, 0], [self._vx2, self._vy2, 0]])
 
     def evaluate_dense_phase_at(self, time):
         """
