@@ -1,5 +1,6 @@
-from tidaltailsim.two_body_problem import TwoBodyProblem
-from tidaltailsim.two_galaxy_problem import TwoGalaxyProblem
+from tidaltailsim.two_body_problem import *
+from tidaltailsim.two_galaxy_problem import *
+from tidaltailsim.galaxy_orbital_toolkit import *
 import numpy as np
 from matplotlib import pyplot as plt
 import mpl_toolkits.mplot3d.axes3d as p3
@@ -14,7 +15,9 @@ def two_body_routine(args):
 
     problem.solve_two_body_problem(args.time_span / 2, sampling_points=floor((args.num + 1) / 2))
 
-    parse_animation(args, problem, args.d3)
+    parse_animation(args, args.d3,
+                    pre_animate_func=lambda ax: problem.plot_two_body_paths(ax),
+                    animate_func=lambda fig, ax, speed, framerate: problem.animate(fig, ax, rate=speed, framerate=framerate))
 
 
 def two_galaxy_routine(args):
@@ -59,7 +62,9 @@ def two_galaxy_routine(args):
         if args.verbose:
             print('Solution of two-galaxy problem saved to {0}'.format(filename))
 
-    parse_animation(args, problem, not args.d2)
+    parse_animation(args, not args.d2,
+                    pre_animate_func=lambda ax: problem.plot_two_body_paths(ax),
+                    animate_func=lambda fig, ax, speed, framerate: problem.animate(fig, ax, rate=speed, framerate=framerate))
 
 
 def two_galaxy_pickled_routine(args):
@@ -69,10 +74,26 @@ def two_galaxy_pickled_routine(args):
     problem.verbose = args.verbose
     problem.suppress_error = args.quiet
 
-    parse_animation(args, problem, not args.d2)
+    parse_animation(args, not args.d2,
+                    pre_animate_func=lambda ax: problem.plot_two_body_paths(ax),
+                    animate_func=lambda fig, ax, speed, framerate: problem.animate(fig, ax, rate=speed, framerate=framerate))
 
 
-def parse_animation(args, problem, dimension_is_3):
+def singleorbital_pickled_routine(args):
+    with open(args.path, 'rb') as f:
+        problem = pickle.load(f)
+
+    orbital_count = len(getattr(problem, 'galaxy{0:d}_orbitals_properties'.format(args.galaxy)))
+    if not (args.orbital < orbital_count and args.orbital >= -orbital_count):
+        raise Exception('The input orbital exceed the number of orbitals in the given galaxy\nPlease input orbital between {0} and {1} inclusive'.format(-orbital_count, orbital_count - 1))
+
+    animator = GalaxyOrbitalAnimator(problem, args.galaxy)
+    animator.configure_animation(args.orbital, GalaxyOrbitalAnimatorOrigin(args.origin))
+    parse_animation(args, not args.d2,
+                    animate_func=lambda fig, ax, speed, framerate: animator.animate(fig, ax, rate=speed, framerate=framerate, time_initial=args.timeinitial))
+
+
+def parse_animation(args, dimension_is_3, animate_func, pre_animate_func=None):
     # if not ((args.animationout is None and args.nogui) or
     #         (args.animationout is not None and args.nogui and args.speed <= 0)):
     if (not args.nogui) or (args.speed > 0 and args.animationout is not None):
@@ -89,11 +110,12 @@ def parse_animation(args, problem, dimension_is_3):
         if not dimension_is_3:
             ax.set_aspect('equal')
 
-        problem.plot_two_body_paths(ax)
+        if pre_animate_func:
+            pre_animate_func(ax)
 
         if args.speed > 0:
 
-            animation, actual_rate = problem.animate(fig, ax, rate=args.speed, framerate=args.framerate)
+            animation, actual_rate = animate_func(fig, ax, args.speed, args.framerate)  # problem.animate(fig, ax, rate=args.speed, framerate=args.framerate)
 
             if animation is None:
                 if not args.quiet:
@@ -189,6 +211,9 @@ if __name__ == '__main__':
     twogalaxy_pickled_parser = subparsers.add_parser('2galaxy_fromfile', help='import solved two-galaxy collision problem from a file previously exported from the 2galaxy subcommand')
     twogalaxy_pickled_parser.set_defaults(func=two_galaxy_pickled_routine)
 
+    singleorbital_pickled_parser = subparsers.add_parser('single_orbital_fromfile', help='import solved two-galaxy collision problem from a file previously exported from the 2galaxy subcommand, and animate only a specific orbital with a configurable origin')
+    singleorbital_pickled_parser.set_defaults(func=singleorbital_pickled_routine)
+
     for _parser in [twobody_parser, twogalaxy_parser]:
         general_group = _parser.add_argument_group(title='general simulation parameters')
         general_group.add_argument('time_span', type=float,
@@ -236,6 +261,17 @@ if __name__ == '__main__':
                                   help='export the simulation result to a file specified by `path`. If no extension is given, the defult extension .pkl will be used.')
 
     twogalaxy_pickled_parser.add_argument('path', help='the two-galaxy collision problem file to be imported')
+
+    singleorbital_pickled_parser.add_argument('path', help='the two-galaxy collision problem file to be imported')
+    singleorbital_pickled_parser.add_argument('galaxy', type=int, choices=(1, 2),
+                                              help='the galaxy index of the animating orbital')
+    singleorbital_pickled_parser.add_argument('orbital', type=int,
+                                              help='the animating orbital zero-based index')
+    singleorbital_pickled_parser.add_argument('--origin', choices=(1, 2), default=0,
+                                              help='the galaxy index of the origin of the axes of the plot (accept 1 or 2) (default to')
+    singleorbital_pickled_parser.add_argument('-t0', '--timeinitial', type=float, default=None,
+                                              metavar='t0',
+                                              help='the initial time of the animation')
 
     args = parser.parse_args()
 
