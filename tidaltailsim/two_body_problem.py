@@ -277,8 +277,11 @@ class TwoBodyProblem:
         self._x2 = self._r2 * np.cos(self._angle)
         self._y2 = self._r2 * np.sin(self._angle)
 
-        self._xyz = np.array([[self._x1, self._y1, 0], [self._x2, self._y2, 0]])
-        self._vxyz = np.array([[self._vx1, self._vy1, 0], [self._vx2, self._vy2, 0]])
+        z_ = np.zeros(self._t.shape)
+        self._xyz = np.stack((np.stack((self._x1, self._y1, z_)),
+                              np.stack((self._x2, self._y2, z_))))
+        self._vxyz = np.stack((np.stack((self._vx1, self._vy1, z_)),
+                               np.stack((self._vx2, self._vy2, z_))))
 
     def evaluate_dense_phase_at(self, time):
         """
