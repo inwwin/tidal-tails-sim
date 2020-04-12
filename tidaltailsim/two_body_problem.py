@@ -117,6 +117,10 @@ class TwoBodyProblem:
         return self._t_end
 
     @property
+    def sampling_points(self):
+        return self._sampling_points
+
+    @property
     def cartesian_coordinates_evolution(self):
         return self._xyz
 
@@ -418,7 +422,7 @@ class TwoBodyProblem:
 
     def animate(self, figure, axes, zdir='z', rate=1.0, framerate=None):
 
-        # if framrate is not given, all frames get rendered (potentially impacting the performance)
+        # if framerate is not given, all frames get rendered (potentially impacting the performance)
         if framerate:
             framestep = int(round(self._sampling_points * rate / (framerate * self._t_end)))
             interval = int(round(framestep * 1000 * self._t_end / self._sampling_points / rate))
