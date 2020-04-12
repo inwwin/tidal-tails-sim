@@ -7,9 +7,9 @@ from mpl_toolkits.mplot3d.axes3d import Axes3D
 
 class GalaxyOrbitalAnimator:
     def __init__(self, two_galaxy_problem, galaxy_index):
-        if two_galaxy_problem is not TwoGalaxyProblem:
+        if not isinstance(two_galaxy_problem, TwoGalaxyProblem):
             raise TypeError('two_galaxy_problem must be an instance of tidaltailsim.two_galaxy_problem.TwoGalaxyProblem')
-        if galaxy_index not in [1, 2]:
+        if galaxy_index not in (1, 2):
             raise ValueError('galaxy_index must be either 1 or 2')
         self._problem = two_galaxy_problem
         self._galaxy_index = galaxy_index
@@ -44,7 +44,7 @@ class GalaxyOrbitalAnimator:
 
     def configure_animation(self, orbital_index, origin_mode):
         orbital_index = int(orbital_index)
-        if origin_mode is not GalaxyOrbitalAnimatorOrigin:
+        if not isinstance(origin_mode, GalaxyOrbitalAnimatorOrigin):
             raise TypeError('origin_mode must be an enum in tidaltailsim.galaxy_orbital_toolkit.GalaxyOrbitalAnimatorOrigin')
 
         orbitals_properties = getattr(self._problem, 'galaxy{0:d}_orbitals_properties'.format(self._galaxy_index))
@@ -104,8 +104,8 @@ class GalaxyOrbitalAnimator:
         time_annotate.set_text('t = {0:.3f}'.format(self._problem.time_domain[frame_index]))
         return (cores, orbits, time_annotate)
 
-    def animate(self, figure, axes, zdir='z', rate=1.0, framerate=None, time_initial=None, **kwargs):
-        if not (self._orbital_states_relative and self._cores_states_relative):
+    def animate(self, figure, axes, rate=1.0, framerate=None, time_initial=None, **kwargs):
+        if self._orbital_states_relative is None or self._cores_states_relative is None:
             raise Exception('Relative states data not found. Please call configure_animation first.')
 
         if time_initial is not None:
@@ -129,7 +129,7 @@ class GalaxyOrbitalAnimator:
             frames = range(frame_initial, self._problem.time_domain.shape[0])
             actual_rate = 1000.0 * self._problem.time_end / interval / self._problem.sampling_points
 
-        *animating_artists = self._prepare_animating_object(axes, frame_initial, **kwargs)
+        animating_artists = self._prepare_animating_object(axes, frame_initial, **kwargs)
 
         animation = \
             FuncAnimation(figure,
