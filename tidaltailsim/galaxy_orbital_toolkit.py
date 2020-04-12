@@ -9,6 +9,8 @@ class GalaxyOrbitalAnimator:
     def __init__(self, two_galaxy_problem, galaxy_index):
         if two_galaxy_problem is not TwoGalaxyProblem:
             raise TypeError('two_galaxy_problem must be an instance of tidaltailsim.two_galaxy_problem.TwoGalaxyProblem')
+        if galaxy_index not in [1, 2]:
+            raise ValueError('galaxy_index must be either 1 or 2')
         self._problem = two_galaxy_problem
         self._galaxy_index = galaxy_index
 
@@ -63,7 +65,54 @@ class GalaxyOrbitalAnimator:
         self._orbital_states_relative = orbital_states - origin_states  # broadcasting
         self._cores_states_relative = cores_states - origin_states  # broadcasting
 
-    def animate(self, figure, axes, zdir='z', rate=1.0, framerate=None):
+    def _prepare_animating_object(self, axes, frame_initial, **kwargs):
+        if hasattr(axes, 'plot3D'):
+            cores, = axes.plot3D(self._cores_states_relative[:, 0, frame_initial],
+                                 self._cores_states_relative[:, 1, frame_initial],
+                                 self._cores_states_relative[:, 2, frame_initial],
+                                 '.', color='navy', markersize=5.0)
+            orbits, = axes.plot3D(self._orbital_states_relative[:, 0, frame_initial],
+                                  self._orbital_states_relative[:, 1, frame_initial],
+                                  self._orbital_states_relative[:, 2, frame_initial],
+                                  '.-', color='maroon', markersize=3.0, **kwargs)
+        else:
+            cores, = axes.plot(self._cores_states_relative[:, 0, frame_initial],
+                               self._cores_states_relative[:, 1, frame_initial],
+                               '.', color='navy', markersize=5.0)
+            orbits, = axes.plot(self._orbital_states_relative[:, 0, frame_initial],
+                                self._orbital_states_relative[:, 1, frame_initial],
+                                '.-', color='maroon', markersize=3.0, **kwargs)
+
+        time_annotate = axes.annotate('t = {0:.3f}'.format(self._problem.time_domain[frame_initial]), (0, 0), xycoords='figure fraction')
+        return (cores, orbits, time_annotate)
+
+    def _animation_func(self, frame_index, cores, orbits, time_annotate):
+        if hasattr(cores, 'set_data_3d'):
+            cores.set_data_3d(self._cores_states_relative[:, 0, frame_index],
+                              self._cores_states_relative[:, 1, frame_index],
+                              self._cores_states_relative[:, 2, frame_index])
+        else:
+            cores.set_data(self._cores_states_relative[:, 0, frame_index],
+                           self._cores_states_relative[:, 1, frame_index])
+        if hasattr(orbits, 'set_data_3d'):
+            orbits.set_data_3d(self._orbital_states_relative[:, 0, frame_index],
+                               self._orbital_states_relative[:, 1, frame_index],
+                               self._orbital_states_relative[:, 2, frame_index])
+        else:
+            orbits.set_data(self._orbital_states_relative[:, 0, frame_index],
+                            self._orbital_states_relative[:, 1, frame_index])
+        time_annotate.set_text('t = {0:.3f}'.format(self._problem.time_domain[frame_index]))
+        return (cores, orbits, time_annotate)
+
+    def animate(self, figure, axes, zdir='z', rate=1.0, framerate=None, time_initial=None, **kwargs):
+        if not (self._orbital_states_relative and self._cores_states_relative):
+            raise Exception('Relative states data not found. Please call configure_animation first.')
+
+        if time_initial is not None:
+            frame_time_zero = (self._problem.time_domain.shape[0] - 1) / 2
+            frame_initial = int(frame_time_zero * (1 + time_initial / self._problem.time_end))
+        else:
+            frame_initial = 0
 
         # if framerate is not given, all frames get rendered (potentially impacting the performance)
         if framerate:
@@ -71,16 +120,16 @@ class GalaxyOrbitalAnimator:
             interval = int(round(framestep * 1000 * self._problem.time_end / self._problem.sampling_points / rate))
             if interval <= 0:
                 return (None, 0.)  # The supplied parameter means the animation is too slow that there is not enough data
-            frames = range(0, self._problem.time_domain.shape[0], framestep)
+            frames = range(frame_initial, self._problem.time_domain.shape[0], framestep)
             actual_rate = 1000.0 * framestep * self._problem.time_end / interval / self._problem.sampling_points
         else:
             interval = int(round(1000 * self._problem.time_end / self._problem.sampling_points / rate))
             if interval <= 0:
                 return (None, 0.)  # The supplied parameter means the animation is too slow that there is not enough data
-            frames = self._problem.time_domain.shape[0]
+            frames = range(frame_initial, self._problem.time_domain.shape[0])
             actual_rate = 1000.0 * self._problem.time_end / interval / self._problem.sampling_points
 
-        animating_artists = self._prepare_animating_object(axes, zdir)
+        *animating_artists = self._prepare_animating_object(axes, frame_initial, **kwargs)
 
         animation = \
             FuncAnimation(figure,
