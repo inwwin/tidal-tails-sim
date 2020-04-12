@@ -43,7 +43,7 @@ class GalaxyOrbitalAnimator:
     def configure_animation(self, orbital_index, origin_mode):
         orbital_index = int(orbital_index)
         if origin_mode is not GalaxyOrbitalAnimatorOrigin:
-            raise TypeError('origin_mode must be an enum in tidaltailsim.galaxy_orbital_animator.GalaxyOrbitalAnimatorOrigin')
+            raise TypeError('origin_mode must be an enum in tidaltailsim.galaxy_orbital_toolkit.GalaxyOrbitalAnimatorOrigin')
 
         orbitals_properties = getattr(self._problem, 'galaxy{0:d}_orbitals_properties'.format(self._galaxy_index))
         if not orbitals_properties:
