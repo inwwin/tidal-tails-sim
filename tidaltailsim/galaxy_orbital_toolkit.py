@@ -65,6 +65,26 @@ class GalaxyOrbitalAnimator:
         self._orbital_states_relative = orbital_states - origin_states  # broadcasting
         self._cores_states_relative = cores_states - origin_states  # broadcasting
 
+    def plot_core_path(self, axes, galaxy_index):
+        if self._cores_states_relative is None:
+            raise Exception('Cores states data not found. Please call configure_animation first.')
+        if galaxy_index not in (1, 2):
+            raise ValueError('galaxy_index must be either 1 or 2')
+
+        galaxy_index -= 1
+
+        if hasattr(axes, 'plot3D'):
+            core_path, = axes.plot3D(self._cores_states_relative[galaxy_index, 0, :],
+                                     self._cores_states_relative[galaxy_index, 1, :],
+                                     self._cores_states_relative[galaxy_index, 2, :],
+                                     '-', color='skyblue')
+        else:
+            core_path, = axes.plot(self._cores_states_relative[galaxy_index, 0, :],
+                                   self._cores_states_relative[galaxy_index, 1, :],
+                                   '-', color='skyblue')
+
+        return core_path
+
     def _prepare_animating_object(self, axes, frame_initial, **kwargs):
         if hasattr(axes, 'plot3D'):
             cores, = axes.plot3D(self._cores_states_relative[:, 0, frame_initial],

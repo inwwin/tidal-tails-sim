@@ -89,7 +89,10 @@ def singleorbital_pickled_routine(args):
 
     animator = GalaxyOrbitalAnimator(problem, args.galaxy)
     animator.configure_animation(args.orbital, GalaxyOrbitalAnimatorOrigin(args.origin))
+    plotting_cores = (3 - args.origin,) if args.origin else (1, 2)
+
     parse_animation(args, not args.d2,
+                    pre_animate_func=lambda ax: [animator.plot_core_path(ax, core_index) for core_index in plotting_cores],
                     animate_func=lambda fig, ax, speed, framerate: animator.animate(fig, ax, rate=speed, framerate=framerate, time_initial=args.timeinitial))
 
 
@@ -267,7 +270,7 @@ if __name__ == '__main__':
                                               help='the galaxy index of the animating orbital')
     singleorbital_pickled_parser.add_argument('orbital', type=int,
                                               help='the animating orbital zero-based index')
-    singleorbital_pickled_parser.add_argument('--origin', choices=(1, 2), default=0,
+    singleorbital_pickled_parser.add_argument('--origin', type=int, choices=(1, 2), default=0,
                                               help='the galaxy index of the origin of the axes of the plot (accept 1 or 2) (default to')
     singleorbital_pickled_parser.add_argument('-t0', '--timeinitial', type=float, default=None,
                                               metavar='t0',
