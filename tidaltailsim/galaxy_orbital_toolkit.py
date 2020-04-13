@@ -2,7 +2,6 @@ import numpy as np
 from enum import IntEnum
 from tidaltailsim.two_galaxy_problem import TwoGalaxyProblem
 from matplotlib.animation import FuncAnimation
-from mpl_toolkits.mplot3d.axes3d import Axes3D
 
 
 class GalaxyOrbitalAnimator:
@@ -103,7 +102,11 @@ class GalaxyOrbitalAnimator:
                                 self._orbital_states_relative[:, 1, frame_initial],
                                 '.-', color='maroon', markersize=3.0, **kwargs)
 
-        time_annotate = axes.annotate('t = {0:.3f}'.format(self._problem.time_domain[frame_initial]), (0, 0), xycoords='figure fraction')
+        time_annotate = axes.annotate('t = {0:=+8.3f}'.format(self._problem.time_domain[frame_initial]),
+                                      xy=(0, 0), xycoords='figure fraction',
+                                      xytext=(6, 6), textcoords='offset pixels',
+                                      fontfamily='monospace')
+
         return (cores, orbits, time_annotate)
 
     def _animation_func(self, frame_index, cores, orbits, time_annotate):
@@ -121,7 +124,7 @@ class GalaxyOrbitalAnimator:
         else:
             orbits.set_data(self._orbital_states_relative[:, 0, frame_index],
                             self._orbital_states_relative[:, 1, frame_index])
-        time_annotate.set_text('t = {0:.3f}'.format(self._problem.time_domain[frame_index]))
+        time_annotate.set_text('t = {0:=+8.3f}'.format(self._problem.time_domain[frame_index]))
         return (cores, orbits, time_annotate)
 
     def animate(self, figure, axes, rate=1.0, framerate=None, time_initial=None, **kwargs):
@@ -153,7 +156,7 @@ class GalaxyOrbitalAnimator:
 
         animation = \
             FuncAnimation(figure,
-                          blit=not isinstance(axes, Axes3D),
+                          blit=False,  # bliting must be disabled to allow rendering the time annotation outside of the axes
                           frames=frames,
                           interval=interval,
                           fargs=animating_artists,
