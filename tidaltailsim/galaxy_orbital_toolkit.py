@@ -127,7 +127,7 @@ class GalaxyOrbitalAnimator:
         time_annotate.set_text('t = {0:=+8.3f}'.format(self._problem.time_domain[frame_index]))
         return (cores, orbits, time_annotate)
 
-    def animate(self, figure, axes, rate=1.0, framerate=None, time_initial=None, **kwargs):
+    def animate(self, figure, axes, rate=1.0, framerate=None, time_initial=None, event_source=None, **kwargs):
         if self._orbital_states_relative is None or self._cores_states_relative is None:
             raise Exception('Relative states data not found. Please call configure_animation first.')
 
@@ -154,13 +154,17 @@ class GalaxyOrbitalAnimator:
 
         animating_artists = self._prepare_animating_object(axes, frame_initial, **kwargs)
 
+        if event_source:
+            event_source.interval = interval
+
         animation = \
             FuncAnimation(figure,
-                          blit=False,  # bliting must be disabled to allow rendering the time annotation outside of the axes
+                          blit=False,  # blitting must be disabled to allow rendering the time annotation outside of the axes
                           frames=frames,
                           interval=interval,
                           fargs=animating_artists,
-                          func=self._animation_func)
+                          func=self._animation_func,
+                          event_source=event_source)
 
         return (animation, actual_rate)
 

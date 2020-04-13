@@ -8,6 +8,16 @@ import argparse
 import pickle
 from os.path import splitext
 from math import floor
+import sys as _sys
+
+
+class ShellArgumentParser(argparse.ArgumentParser):
+    """a derivation of argparse.ArgumentParser which disable its exit behaviour"""
+
+    def exit(self, status=0, message=None):
+        if message:
+            self._print_message(message, _sys.stderr)
+        # _sys.exit(status)
 
 
 def two_body_routine(args):
@@ -91,9 +101,76 @@ def singleorbital_pickled_routine(args):
     animator.configure_animation(args.orbital, GalaxyOrbitalAnimatorOrigin(args.origin))
     plotting_cores = (3 - args.origin,) if args.origin else (1, 2)
 
-    parse_animation(args, not args.d2,
-                    pre_animate_func=lambda ax: [animator.plot_core_path(ax, core_index) for core_index in plotting_cores],
-                    animate_func=lambda fig, ax, speed, framerate: animator.animate(fig, ax, rate=speed, framerate=framerate, time_initial=args.timeinitial))
+    if not args.interactive:
+        parse_animation(args, not args.d2,
+                        pre_animate_func=lambda ax: [animator.plot_core_path(ax, core_index) for core_index in plotting_cores],
+                        animate_func=lambda fig, ax, speed, framerate: animator.animate(fig, ax, rate=speed, framerate=framerate, time_initial=args.timeinitial))
+    else:
+        # Launch animation
+        fig, ax = plt.subplots(subplot_kw=dict(projection='3d') if not args.d2 else None)
+
+        if args.xlim is not None:
+            ax.set_xlim(args.xlim)
+        if args.ylim is not None:
+            ax.set_ylim(args.ylim)
+        if args.d2:
+            ax.set_aspect('equal')
+        else:
+            if args.zlim is not None:
+                ax.set_zlim(args.zlim)
+        if args.speed <= 0:
+            args.speed = 1.0
+
+        timer = fig.canvas.new_timer()
+
+        [animator.plot_core_path(ax, core_index) for core_index in plotting_cores]
+
+        animation, actual_rate = animator.animate(fig, ax, rate=args.speed, framerate=args.framerate, time_initial=args.timeinitial, event_source=timer)
+
+        if animation is None:
+            print('Data not enough to render animation at this speed/framerate combination.')
+        else:
+            print(f'Animation prepared.\nThe actual speed of the animation is {actual_rate} simulation time-unit = 1 animation second')
+
+            fig.show()
+
+            # Animation succesfully launched. Now launch the interactive shell
+            continue_ = True
+
+            shell_parser = ShellArgumentParser(prog='', add_help=False)
+            sub_shell_parsers = shell_parser.add_subparsers(title='command')
+
+            help_parser = sub_shell_parsers.add_parser('help')
+            help_parser.set_defaults(action='help')
+
+            exit_parser = sub_shell_parsers.add_parser('exit')
+            exit_parser.set_defaults(action='exit')
+
+            stop_parser = sub_shell_parsers.add_parser('pause')
+            stop_parser.set_defaults(action='stop')
+
+            start_parser = sub_shell_parsers.add_parser('continue')
+            start_parser.set_defaults(action='start')
+
+            print('Launching interactive shell')
+            while continue_:
+                try:
+                    cmd = input('>>> ')
+                    shell_args = shell_parser.parse_args(cmd.split())
+                except EOFError:
+                    continue_ = False
+                except:
+                    print("Unexpected shell parsing error:", _sys.exc_info()[0])
+                else:
+                    action = getattr(shell_args, 'action', None)
+                    if 'help' == action:
+                        shell_parser.print_help()
+                    elif 'exit' == action:
+                        continue_ = False
+                    elif 'stop' == action:
+                        timer.stop()
+                    elif 'start' == action:
+                        timer.start()
 
 
 def parse_animation(args, dimension_is_3, animate_func, pre_animate_func=None):
@@ -275,11 +352,13 @@ if __name__ == '__main__':
     singleorbital_pickled_parser.add_argument('-t0', '--timeinitial', type=float, default=None,
                                               metavar='t0',
                                               help='the initial time of the animation')
+    singleorbital_pickled_parser.add_argument('-i', '--interactive', action='store_true',
+                                              help='launch an interactive CLI shell, for advanced analysis of the orbital. --animationout, --adjustgui, and --nogui will be ignored')
 
     args = parser.parse_args()
 
     # Add more logic to handle the workaround for Python 3.6.9
-    if args.func:
+    if hasattr(args, 'func'):
         args.func(args)
     else:
         print('Please specify the subcommand 2body, 2galaxy, or 2galaxy_fromfile')
