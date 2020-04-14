@@ -84,6 +84,22 @@ class GalaxyOrbitalAnimator:
 
         return core_path
 
+    def plot_test_mass_path(self, axes, test_mass_index: int, path_slice: slice, **kwargs):
+        if self._orbital_states_relative is None:
+            raise Exception('Orbital states data not found. Please call configure_animation first.')
+
+        if hasattr(axes, 'plot3D'):
+            test_mass_path, = axes.plot3D(self._orbital_states_relative[test_mass_index, 0, path_slice],
+                                          self._orbital_states_relative[test_mass_index, 1, path_slice],
+                                          self._orbital_states_relative[test_mass_index, 2, path_slice],
+                                          '-', color='darkslategrey', **kwargs)
+        else:
+            test_mass_path, = axes.plot(self._orbital_states_relative[test_mass_index, 0, path_slice],
+                                        self._orbital_states_relative[test_mass_index, 1, path_slice],
+                                        '-', color='darkslategrey', **kwargs)
+
+        return test_mass_path
+
     def _prepare_animating_object(self, axes, frame_initial, **kwargs):
         if hasattr(axes, 'plot3D'):
             cores, = axes.plot3D(self._cores_states_relative[:, 0, frame_initial],
@@ -102,7 +118,7 @@ class GalaxyOrbitalAnimator:
                                 self._orbital_states_relative[:, 1, frame_initial],
                                 '.-', color='maroon', markersize=3.0, **kwargs)
 
-        time_annotate = axes.annotate('t = {0:=+8.3f}'.format(self._problem.time_domain[frame_initial]),
+        time_annotate = axes.annotate('frame index = {1}\nt = {0:=+8.3f}'.format(self._problem.time_domain[frame_initial], frame_initial),
                                       xy=(0, 0), xycoords='figure fraction',
                                       xytext=(6, 6), textcoords='offset pixels',
                                       fontfamily='monospace')
@@ -124,7 +140,7 @@ class GalaxyOrbitalAnimator:
         else:
             orbits.set_data(self._orbital_states_relative[:, 0, frame_index],
                             self._orbital_states_relative[:, 1, frame_index])
-        time_annotate.set_text('t = {0:=+8.3f}'.format(self._problem.time_domain[frame_index]))
+        time_annotate.set_text('frame index = {1}\nt = {0:=+8.3f}'.format(self._problem.time_domain[frame_index], frame_index))
         return (cores, orbits, time_annotate)
 
     def animate(self, figure, axes, rate=1.0, framerate=None, time_initial=None, event_source=None, **kwargs):

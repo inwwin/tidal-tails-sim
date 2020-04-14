@@ -143,6 +143,7 @@ def singleorbital_pickled_routine(args):
 
         # Animation has succesfully launched. Now launch the interactive shell
         continue_ = True
+        test_mass_lines = []
 
         shell_parser = ShellArgumentParser(prog='', add_help=False)
         sub_shell_parsers = shell_parser.add_subparsers(title='command')
@@ -173,6 +174,18 @@ def singleorbital_pickled_routine(args):
                                          metavar='tolerance')
         picker_status_group.add_argument('-off', action='store_true')
 
+        plot_path_parser = sub_shell_parsers.add_parser('path')
+        plot_path_parser.set_defaults(action='path')
+        path_slice_group = plot_path_parser.add_mutually_exclusive_group(required=True)
+        path_slice_group.add_argument('-f', '--from', type=int, dest='from_',
+                                      metavar='begin_frame_index')
+        path_slice_group.add_argument('-ft', '--fromto', type=int, default=False, nargs=2,
+                                      metavar=('begin_frame_index', 'end_frame_index'))
+        plot_path_parser.add_argument('test_mass_index', type=int, nargs='+')
+
+        clear_plot_path_parser = sub_shell_parsers.add_parser('clearpath')
+        clear_plot_path_parser.set_defaults(action='clearpath')
+
         print('Launching interactive shell')
         while continue_:
             try:
@@ -180,8 +193,9 @@ def singleorbital_pickled_routine(args):
                 shell_args = shell_parser.parse_args(cmd.split())
             except EOFError:
                 continue_ = False
-            except:
-                print("Unexpected shell parsing error:", _sys.exc_info()[0])
+            except BaseException as e:
+                if not args.quiet:
+                    print(f"Unexpected shell parsing error: {e}")
             else:
                 action = getattr(shell_args, 'action', None)
                 if 'help' == action:
@@ -197,6 +211,26 @@ def singleorbital_pickled_routine(args):
                         print('picker status is ' + str(orbits.get_picker()))
                     else:
                         orbits.set_picker(shell_args.on)
+                elif 'path' == action and shell_args.test_mass_index:
+                    slice_ = slice(shell_args.fromto[0], shell_args.fromto[1]) if shell_args.fromto else slice(shell_args.from_, None)
+                    old_test_mass_lines = test_mass_lines
+                    try:
+                        test_mass_lines = []
+                        for index in shell_args.test_mass_index:
+                            test_mass_lines.append(animator.plot_test_mass_path(ax, index, slice_))
+                    except IndexError:
+                        print('The test mass indices are out-of-bound')
+                        print(f'There are {len(animator.target_orbital_properties["states"])} test masses in the system')
+                        [line.remove() for line in test_mass_lines]
+                        test_mass_lines = old_test_mass_lines
+                    else:
+                        [line.remove() for line in old_test_mass_lines]
+                    finally:
+                        fig.canvas.draw_idle()
+                elif 'clearpath' == action:
+                    [line.remove() for line in test_mass_lines]
+                    test_mass_lines = []
+                    fig.canvas.draw_idle()
 
 
 def parse_animation(args, dimension_is_3, animate_func, pre_animate_func=None):
@@ -221,7 +255,7 @@ def parse_animation(args, dimension_is_3, animate_func, pre_animate_func=None):
 
         if args.speed > 0:
 
-            animation, actual_rate = animate_func(fig, ax, args.speed, args.framerate)  # problem.animate(fig, ax, rate=args.speed, framerate=args.framerate)
+            animation, actual_rate, *artists = animate_func(fig, ax, args.speed, args.framerate)  # problem.animate(fig, ax, rate=args.speed, framerate=args.framerate)
 
             if animation is None:
                 if not args.quiet:
