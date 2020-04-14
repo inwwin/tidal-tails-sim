@@ -166,7 +166,7 @@ class GalaxyOrbitalAnimator:
                           func=self._animation_func,
                           event_source=event_source)
 
-        return (animation, actual_rate)
+        return (animation, actual_rate, animating_artists[1])
 
 
 class GalaxyOrbitalAnimatorOrigin(IntEnum):

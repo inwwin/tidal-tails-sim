@@ -106,7 +106,7 @@ def singleorbital_pickled_routine(args):
                         pre_animate_func=lambda ax: [animator.plot_core_path(ax, core_index) for core_index in plotting_cores],
                         animate_func=lambda fig, ax, speed, framerate: animator.animate(fig, ax, rate=speed, framerate=framerate, time_initial=args.timeinitial))
     else:
-        # Launch animation
+        # Launch animation before launching the interactive shell
         fig, ax = plt.subplots(subplot_kw=dict(projection='3d') if not args.d2 else None)
 
         if args.xlim is not None:
@@ -121,56 +121,82 @@ def singleorbital_pickled_routine(args):
         if args.speed <= 0:
             args.speed = 1.0
 
+        def pick_handler(event):
+            indices = event.ind
+            print('Indices of test masses picked: {0}'.format(' '.join([str(index) for index in np.nditer(indices)])))
+
         timer = fig.canvas.new_timer()
 
         [animator.plot_core_path(ax, core_index) for core_index in plotting_cores]
 
-        animation, actual_rate = animator.animate(fig, ax, rate=args.speed, framerate=args.framerate, time_initial=args.timeinitial, event_source=timer)
+        animation, actual_rate, orbits, = animator.animate(fig, ax, rate=args.speed, framerate=args.framerate, time_initial=args.timeinitial, event_source=timer)
+
+        fig.canvas.mpl_connect('pick_event', pick_handler)
 
         if animation is None:
             print('Data not enough to render animation at this speed/framerate combination.')
-        else:
-            print(f'Animation prepared.\nThe actual speed of the animation is {actual_rate} simulation time-unit = 1 animation second')
+            return
 
-            fig.show()
+        print(f'Animation prepared.\nThe actual speed of the animation is {actual_rate} simulation time-unit = 1 animation second')
 
-            # Animation succesfully launched. Now launch the interactive shell
-            continue_ = True
+        fig.show()
 
-            shell_parser = ShellArgumentParser(prog='', add_help=False)
-            sub_shell_parsers = shell_parser.add_subparsers(title='command')
+        # Animation has succesfully launched. Now launch the interactive shell
+        continue_ = True
 
-            help_parser = sub_shell_parsers.add_parser('help')
-            help_parser.set_defaults(action='help')
+        shell_parser = ShellArgumentParser(prog='', add_help=False)
+        sub_shell_parsers = shell_parser.add_subparsers(title='command')
 
-            exit_parser = sub_shell_parsers.add_parser('exit')
-            exit_parser.set_defaults(action='exit')
+        help_parser = sub_shell_parsers.add_parser('help')
+        help_parser.set_defaults(action='help')
 
-            stop_parser = sub_shell_parsers.add_parser('pause')
-            stop_parser.set_defaults(action='stop')
+        exit_parser = sub_shell_parsers.add_parser('exit')
+        exit_parser.set_defaults(action='exit')
 
-            start_parser = sub_shell_parsers.add_parser('continue')
-            start_parser.set_defaults(action='start')
+        stop_parser = sub_shell_parsers.add_parser('pause')
+        stop_parser.set_defaults(action='stop')
 
-            print('Launching interactive shell')
-            while continue_:
-                try:
-                    cmd = input('>>> ')
-                    shell_args = shell_parser.parse_args(cmd.split())
-                except EOFError:
+        start_parser = sub_shell_parsers.add_parser('resume')
+        start_parser.set_defaults(action='start')
+
+        # it is not trivial to perform a seek operation on the frame sequence iterator of matplotlib's animation
+        # therefore this feature is dropped
+        # (I reckon it would involve implementing a new iterator that support seeking)
+        # seek_parser = sub_shell_parsers.add_parser('seek')
+        # seek_parser.set_defaults(action='seek')
+
+        picker_parser = sub_shell_parsers.add_parser('picker')
+        picker_parser.set_defaults(action='picker')
+        picker_status_group = picker_parser.add_mutually_exclusive_group(required=True)
+        picker_status_group.add_argument('--status', action='store_true')
+        picker_status_group.add_argument('-on', nargs='?', const=True, default=False, type=float,
+                                         metavar='tolerance')
+        picker_status_group.add_argument('-off', action='store_true')
+
+        print('Launching interactive shell')
+        while continue_:
+            try:
+                cmd = input('>>> ')
+                shell_args = shell_parser.parse_args(cmd.split())
+            except EOFError:
+                continue_ = False
+            except:
+                print("Unexpected shell parsing error:", _sys.exc_info()[0])
+            else:
+                action = getattr(shell_args, 'action', None)
+                if 'help' == action:
+                    shell_parser.print_help()
+                elif 'exit' == action:
                     continue_ = False
-                except:
-                    print("Unexpected shell parsing error:", _sys.exc_info()[0])
-                else:
-                    action = getattr(shell_args, 'action', None)
-                    if 'help' == action:
-                        shell_parser.print_help()
-                    elif 'exit' == action:
-                        continue_ = False
-                    elif 'stop' == action:
-                        timer.stop()
-                    elif 'start' == action:
-                        timer.start()
+                elif 'stop' == action:
+                    timer.stop()
+                elif 'start' == action:
+                    timer.start()
+                elif 'picker' == action:
+                    if shell_args.status:
+                        print('picker status is ' + str(orbits.get_picker()))
+                    else:
+                        orbits.set_picker(shell_args.on)
 
 
 def parse_animation(args, dimension_is_3, animate_func, pre_animate_func=None):
@@ -294,7 +320,7 @@ if __name__ == '__main__':
     singleorbital_pickled_parser = subparsers.add_parser('single_orbital_fromfile', help='import solved two-galaxy collision problem from a file previously exported from the 2galaxy subcommand, and animate only a specific orbital with a configurable origin')
     singleorbital_pickled_parser.set_defaults(func=singleorbital_pickled_routine)
 
-    for _parser in [twobody_parser, twogalaxy_parser]:
+    for _parser in (twobody_parser, twogalaxy_parser):
         general_group = _parser.add_argument_group(title='general simulation parameters')
         general_group.add_argument('time_span', type=float,
                                    help='total time evolution of the system, with extremum in the middle')
