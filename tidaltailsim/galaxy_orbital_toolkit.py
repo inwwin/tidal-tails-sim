@@ -2,10 +2,17 @@ import numpy as np
 from enum import IntEnum
 from tidaltailsim.two_galaxy_problem import TwoGalaxyProblem
 from matplotlib.animation import FuncAnimation
+from matplotlib.figure import Figure
+
+
+class GalaxyOrbitalAnimatorOrigin(IntEnum):
+    CENTRE_OF_MASS = 0
+    GALAXY1 = 1
+    GALAXY2 = 2
 
 
 class GalaxyOrbitalAnimator:
-    def __init__(self, two_galaxy_problem, galaxy_index):
+    def __init__(self, two_galaxy_problem: TwoGalaxyProblem, galaxy_index: int):
         if not isinstance(two_galaxy_problem, TwoGalaxyProblem):
             raise TypeError('two_galaxy_problem must be an instance of tidaltailsim.two_galaxy_problem.TwoGalaxyProblem')
         if galaxy_index not in (1, 2):
@@ -41,7 +48,7 @@ class GalaxyOrbitalAnimator:
     def cores_states_relative(self):
         return self._cores_states_relative
 
-    def configure_animation(self, orbital_index, origin_mode):
+    def configure_animation(self, orbital_index: int, origin_mode: GalaxyOrbitalAnimatorOrigin):
         orbital_index = int(orbital_index)
         if not isinstance(origin_mode, GalaxyOrbitalAnimatorOrigin):
             raise TypeError('origin_mode must be an enum in tidaltailsim.galaxy_orbital_toolkit.GalaxyOrbitalAnimatorOrigin')
@@ -183,9 +190,3 @@ class GalaxyOrbitalAnimator:
                           event_source=event_source)
 
         return (animation, actual_rate, animating_artists[1])
-
-
-class GalaxyOrbitalAnimatorOrigin(IntEnum):
-    CENTRE_OF_MASS = 0
-    GALAXY1 = 1
-    GALAXY2 = 2
