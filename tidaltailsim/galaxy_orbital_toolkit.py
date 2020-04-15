@@ -189,3 +189,13 @@ class GalaxyOrbitalAnimatorOrigin(IntEnum):
     CENTRE_OF_MASS = 0
     GALAXY1 = 1
     GALAXY2 = 2
+
+
+class TestMassProfiler:
+
+    def __init__(self, problem: TwoGalaxyProblem, test_mass_index: int, fig: Figure = None):
+        if fig is None:
+            fig = Figure()
+
+        self._fig = fig
+        fig.subplots
