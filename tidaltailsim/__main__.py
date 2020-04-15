@@ -270,20 +270,25 @@ def parse_animation(args, dimension_is_3, animate_func, pre_animate_func=None):
                     else:
                         writer = None
 
+                    callback = (lambda i, n: print(f'Saving frame {i} of {n}', end='\r')) if not args.quiet else None
                     if args.nogui:
                         animation.save(args.animationout, writer=writer,
-                                       progress_callback=lambda i, n: print(f'Saving frame {i} of {n}', end='\r'))
-                        print('Animation saved to {0}'.format(args.animationout))
+                                       progress_callback=callback)
+                        if args.verbose:
+                            print('Animation saved to {0}'.format(args.animationout))
                     elif args.adjustgui:
                         fig.show()
-                        input('When you finish adjusting the plot in the GUI, return here and press return before closing the window, to continue saving the animation output.')
+                        if not args.quiet:
+                            input('When you finish adjusting the plot in the GUI, return here and press return before closing the window, to continue saving the animation output.')
                         animation.save(args.animationout, writer=writer,
-                                       progress_callback=lambda i, n: print(f'Saving frame {i} of {n}', end='\r'))
-                        print('Animation saved to {0}'.format(args.animationout))
+                                       progress_callback=callback)
+                        if args.verbose:
+                            print('Animation saved to {0}'.format(args.animationout))
                     else:
                         animation.save(args.animationout, writer=writer,
-                                       progress_callback=lambda i, n: print(f'Saving frame {i} of {n}', end='\r'))
-                        print('Animation saved to {0}'.format(args.animationout))
+                                       progress_callback=callback)
+                        if args.verbose:
+                            print('Animation saved to {0}'.format(args.animationout))
                         plt.show()
                 elif not args.nogui:
                     plt.show()
