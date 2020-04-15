@@ -22,27 +22,27 @@ class TwoBodyProblem:
     rM is the reduced mass parameter.
     G is the Gravitational constant.
     M1 and M2 are the masses of the two bodies.
+
+    Parameters:
+    r0  -- Initial distance between the bodies
+    r0d -- Initial radial velocity between the bodies (at t=0)
+    (set r0d=0 if r0 is the extremum distance)
+    E   -- Total energy of the problem
+    J   -- Total angular momentum of the problem
+    G   -- Gravitational constant
+    M1  -- The mass of the first body
+    M2  -- The mass of the second body
+    use_reduced_mass  -- should the Hamiltonian be written with reduced mass approached
+
+    If J is None, it will be automatically computed from other parameters,
+    otherwise, J will be used to infer r0d (with the same sign as the passed r0d).
+
+    If use_reduced_mass is False, it will assume that M1 >> M2, ie, reduced mass = M2
     """
 
     def __init__(self, r0, r0d=0., E=0., J=None, G=1., M1=1., M2=1., use_reduced_mass=True):
         """
         Initialise the two-body problem from the given initial condition
-
-        Parameters:
-        r0  -- Initial distance between the bodies
-        r0d -- Initial radial velocity between the bodies (at t=0)
-        (set r0d=0 if r0 is the extremum distance)
-        E   -- Total energy of the problem
-        J   -- Total angular momentum of the problem
-        G   -- Gravitational constant
-        M1  -- The mass of the first body
-        M2  -- The mass of the second body
-        use_reduced_mass  -- should the Hamiltonian be written with reduced mass approached
-
-        If J is None, it will be automatically computed from other parameters,
-        otherwise, J will be used to infer r0d (with the same sign as the passed r0d).
-
-        If use_reduced_mass is False, it will assume that M1 >> M2, ie, reduced mass = M2
         """
 
         self._r0 = r0

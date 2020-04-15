@@ -264,7 +264,7 @@ def singleorbital_pickled_routine(args):
                     fig.canvas.draw_idle()
                 elif 'profile' == action:
                     slice_ = slice(shell_args.fromto[0], shell_args.fromto[1]) if shell_args.fromto else slice(shell_args.from_, None)
-                    fig = plt.figure()
+                    fig = plt.figure()  # so that pyplot keep reference to Figure created and hence not garbage-collected
                     profiler = TestMassProfiler(problem, args.galaxy, args.orbital, shell_args.test_mass_index, figure=fig, frame_slice=slice_)
                     fig.show()
 

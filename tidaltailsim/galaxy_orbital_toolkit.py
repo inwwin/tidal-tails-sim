@@ -151,7 +151,7 @@ class GalaxyOrbitalAnimator:
         time_annotate.set_text('frame index = {1}\nt = {0:=+8.3f}'.format(self._problem.time_domain[frame_index], frame_index))
         return (cores, orbits, time_annotate)
 
-    def animate(self, figure, axes, rate=1.0, framerate=None, time_initial=None, event_source=None, **kwargs):
+    def animate(self, figure: Figure, axes: Axes, rate=1.0, framerate=None, time_initial=None, event_source=None, **kwargs):
         if self._orbital_states_relative is None or self._cores_states_relative is None:
             raise Exception('Relative states data not found. Please call configure_animation first.')
 
@@ -225,6 +225,8 @@ class TestMassProfiler:
 
         self._plot_distances_from_cores(frame_slice)
         self._plot_eccentricity(frame_slice)
+
+        self.default_frame_slice = frame_slice  # type: slice
 
     @property
     def two_galaxy_problem(self) -> TwoGalaxyProblem:
