@@ -12,12 +12,29 @@ import sys as _sys
 
 
 class ShellArgumentParser(argparse.ArgumentParser):
-    """a derivation of argparse.ArgumentParser which disable its exit behaviour"""
+    """a derivation of argparse.ArgumentParser class
+    which disable its exiting behaviour and mark
+    the exiting status in the parsed args instead"""
 
     def exit(self, status=0, message=None):
         if message:
             self._print_message(message, _sys.stderr)
         # _sys.exit(status)
+        self.__mark_as_exiting = True
+
+    def parse_args(self, args=None, namespace=None):
+        args = super().parse_args(args, namespace)
+        exiting = getattr(args, 'exiting', False)
+        setattr(args, 'exiting', exiting)
+        return args
+
+    def parse_known_args(self, args=None, namespace=None):
+        self.__mark_as_exiting = False
+        namespace, args = super().parse_known_args(args, namespace)
+        if self.__mark_as_exiting:  # and not getattr(namespace, 'exiting', False):
+            setattr(namespace, 'exiting', True)
+        del self.__mark_as_exiting
+        return namespace, args
 
 
 def two_body_routine(args):
@@ -91,7 +108,7 @@ def two_galaxy_pickled_routine(args):
 
 def singleorbital_pickled_routine(args):
     with open(args.path, 'rb') as f:
-        problem = pickle.load(f)
+        problem = pickle.load(f)  # type: TwoGalaxyProblem
 
     orbital_count = len(getattr(problem, 'galaxy{0:d}_orbitals_properties'.format(args.galaxy)))
     if not (args.orbital < orbital_count and args.orbital >= -orbital_count):
@@ -137,7 +154,13 @@ def singleorbital_pickled_routine(args):
             print('Data not enough to render animation at this speed/framerate combination.')
             return
 
-        print(f'Animation prepared.\nThe actual speed of the animation is {actual_rate} simulation time-unit = 1 animation second')
+        print(f'Animation prepared.\nThe actual speed of the animation is {actual_rate} simulation-time-unit per one animation-second')
+        print('======TwoGalaxyProblem\'s info======')
+        print(f'Total number of orbitals in this galaxy (number:{animator.galaxy_index}):      {orbital_count}')
+        print(f'Total number of test masses in this orbital (index:{animator.target_orbital_index:3d}): {len(animator.target_orbital_properties["states"])}')
+        print(f'Total number of frames:                                  {len(problem.time_domain)}')
+        print(f'Frame index at t=0:                                      {int((len(problem.time_domain)-1)/2)}')
+        print('==============End info==============')
 
         fig.show()
 
@@ -169,24 +192,30 @@ def singleorbital_pickled_routine(args):
         picker_parser = sub_shell_parsers.add_parser('picker')
         picker_parser.set_defaults(action='picker')
         picker_status_group = picker_parser.add_mutually_exclusive_group(required=True)
-        picker_status_group.add_argument('--status', action='store_true')
+        picker_status_group.add_argument('--status', action='store_true', default=False)
         picker_status_group.add_argument('-on', nargs='?', const=True, default=False, type=float,
                                          metavar='tolerance')
-        picker_status_group.add_argument('-off', action='store_true')
+        picker_status_group.add_argument('-off', action='store_true', default=False)
 
         plot_path_parser = sub_shell_parsers.add_parser('path')
         plot_path_parser.set_defaults(action='path')
-        path_slice_group = plot_path_parser.add_mutually_exclusive_group(required=True)
-        path_slice_group.add_argument('-f', '--from', type=int, dest='from_',
-                                      metavar='begin_frame_index')
-        path_slice_group.add_argument('-ft', '--fromto', type=int, default=False, nargs=2,
-                                      metavar=('begin_frame_index', 'end_frame_index'))
         plot_path_parser.add_argument('test_mass_index', type=int, nargs='+')
 
         clear_plot_path_parser = sub_shell_parsers.add_parser('clearpath')
         clear_plot_path_parser.set_defaults(action='clearpath')
 
-        print('Launching interactive shell')
+        profile_parser = sub_shell_parsers.add_parser('profile')
+        profile_parser.set_defaults(action='profile')
+        profile_parser.add_argument('test_mass_index', type=int)
+
+        for parser in (plot_path_parser, profile_parser):
+            frame_slice_group = parser.add_mutually_exclusive_group(required=True)
+            frame_slice_group.add_argument('-f', '--from', type=int, dest='from_', default=False,
+                                           metavar='begin_frame_index')
+            frame_slice_group.add_argument('-ft', '--fromto', type=int, default=False, nargs=2,
+                                           metavar=('begin_frame_index', 'end_frame_index'))
+
+        print('Launching interactive shell\nTry \'help\' command to learn more')
         while continue_:
             try:
                 cmd = input('>>> ')
@@ -197,6 +226,8 @@ def singleorbital_pickled_routine(args):
                 if not args.quiet:
                     print(f"Unexpected shell parsing error: {e}")
             else:
+                if shell_args.exiting:
+                    continue
                 action = getattr(shell_args, 'action', None)
                 if 'help' == action:
                     shell_parser.print_help()
@@ -211,7 +242,7 @@ def singleorbital_pickled_routine(args):
                         print('picker status is ' + str(orbits.get_picker()))
                     else:
                         orbits.set_picker(shell_args.on)
-                elif 'path' == action and shell_args.test_mass_index:
+                elif 'path' == action:
                     slice_ = slice(shell_args.fromto[0], shell_args.fromto[1]) if shell_args.fromto else slice(shell_args.from_, None)
                     old_test_mass_lines = test_mass_lines
                     try:
@@ -231,6 +262,11 @@ def singleorbital_pickled_routine(args):
                     [line.remove() for line in test_mass_lines]
                     test_mass_lines = []
                     fig.canvas.draw_idle()
+                elif 'profile' == action:
+                    slice_ = slice(shell_args.fromto[0], shell_args.fromto[1]) if shell_args.fromto else slice(shell_args.from_, None)
+                    fig = plt.figure()
+                    profiler = TestMassProfiler(problem, args.galaxy, args.orbital, shell_args.test_mass_index, figure=fig, frame_slice=slice_)
+                    fig.show()
 
 
 def parse_animation(args, dimension_is_3, animate_func, pre_animate_func=None):
@@ -255,14 +291,14 @@ def parse_animation(args, dimension_is_3, animate_func, pre_animate_func=None):
 
         if args.speed > 0:
 
-            animation, actual_rate, *artists = animate_func(fig, ax, args.speed, args.framerate)  # problem.animate(fig, ax, rate=args.speed, framerate=args.framerate)
+            animation, actual_rate, *_ = animate_func(fig, ax, args.speed, args.framerate)  # problem.animate(fig, ax, rate=args.speed, framerate=args.framerate)
 
             if animation is None:
                 if not args.quiet:
                     print('Data not enough to render animation at this speed/framerate combination.')
             else:
                 if args.verbose:
-                    print(f'Animation prepared.\nThe actual speed of the animation is {actual_rate} simulation time-unit = 1 animation second')
+                    print(f'Animation prepared.\nThe actual speed of the animation is {actual_rate} simulation-time-unit per one animation-second')
 
                 if args.animationout:
                     if args.animationwriter:

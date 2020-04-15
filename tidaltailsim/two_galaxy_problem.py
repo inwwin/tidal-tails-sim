@@ -42,6 +42,10 @@ class TwoGalaxyProblem(TwoBodyProblem):
         self.suppress_error = False
 
     @property
+    def G_feel(self):
+        return self._G_feel
+
+    @property
     def M1_feel(self):
         """
         The mass of body/core 1 that the particles will *feel*

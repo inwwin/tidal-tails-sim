@@ -3,6 +3,7 @@ from enum import IntEnum
 from tidaltailsim.two_galaxy_problem import TwoGalaxyProblem
 from matplotlib.animation import FuncAnimation
 from matplotlib.figure import Figure
+from matplotlib.axes import Axes
 
 
 class GalaxyOrbitalAnimatorOrigin(IntEnum):
@@ -194,9 +195,104 @@ class GalaxyOrbitalAnimator:
 
 class TestMassProfiler:
 
-    def __init__(self, problem: TwoGalaxyProblem, test_mass_index: int, fig: Figure = None):
-        if fig is None:
-            fig = Figure()
+    def __init__(self, two_galaxy_problem: TwoGalaxyProblem,
+                 galaxy_index: int, orbital_index: int, test_mass_index: int,
+                 figure: Figure = None, frame_slice: slice = slice(None)):
+        if not isinstance(two_galaxy_problem, TwoGalaxyProblem):
+            raise TypeError('two_galaxy_problem must be an instance of tidaltailsim.two_galaxy_problem.TwoGalaxyProblem')
+        if galaxy_index not in (1, 2):
+            raise ValueError('galaxy_index must be either 1 or 2')
+        self._problem = two_galaxy_problem
+        self._galaxy_index = galaxy_index
 
-        self._fig = fig
-        fig.subplots
+        self._test_mass_raw_states = \
+            getattr(self._problem, 'galaxy{0:d}_orbitals_properties'.format(self._galaxy_index))[orbital_index]['states'][test_mass_index, ...]
+
+        self._orbital_index = orbital_index
+        self._test_mass_index = test_mass_index
+        if figure is None:
+            figure = Figure()
+
+        self._figure = figure  # type: Figure
+        self._axs = figure.subplots(2, 2, sharex=True)
+        # rows: 0=>distance from core 1=>aceentricity
+        # columns: 0=>rel to core1 1=>rel to core2
+
+        self._figure.set_tight_layout(True)
+        self._annotate_figure()
+
+        self._calculate_relative_states_from_cores()
+
+        self._plot_distances_from_cores(frame_slice)
+        self._plot_eccentricity(frame_slice)
+
+    @property
+    def two_galaxy_problem(self) -> TwoGalaxyProblem:
+        return self._problem
+
+    @property
+    def galaxy_index(self) -> int:
+        return self._galaxy_index
+
+    @property
+    def test_mass_raw_states(self):
+        return self._test_mass_raw_states
+
+    @property
+    def orbital_index(self) -> int:
+        return self._orbital_index
+
+    @property
+    def test_mass_index(self) -> int:
+        return self._test_mass_index
+
+    @property
+    def figure(self) -> Figure:
+        return self._figure
+
+    @property
+    def axes_array(self):
+        return self._axs
+
+    def _calculate_relative_states_from_cores(self):
+        cores_states = np.concatenate((self._problem.cartesian_coordinates_evolution,
+                                       self._problem.cartesian_velocity_evolution),
+                                      axis=1)
+
+        test_mass_states_double = np.stack((self._test_mass_raw_states, self._test_mass_raw_states))
+
+        self._relative_test_mass_states = test_mass_states_double - cores_states
+
+        self._distace_from_cores = np.sqrt(np.sum(np.square(self._relative_test_mass_states[:, :3, ...]), axis=1))
+
+        # specific_angular_momentum = r ^ v
+        specific_angular_momentum = np.cross(self._relative_test_mass_states[:, :3, ...],
+                                             self._relative_test_mass_states[:, 3:, ...],
+                                             axis=1)
+
+        squared_specific_angular_momentum = np.sum(np.square(specific_angular_momentum), axis=1)
+
+        masses = np.array([self._problem.M1_feel, self._problem.M2_feel])[:, np.newaxis]
+
+        # specfic_energy = (kinetic + potential) / test_mass
+        specific_energy = .5 * np.sum(np.square(self._relative_test_mass_states[:, 3:, ...]), axis=1) \
+            - self._problem.G_feel * masses / self._distace_from_cores
+
+        # eccentricity defined here https://en.wikipedia.org/wiki/Orbital_eccentricity#Definition
+        self._eccentricity = np.sqrt(1 + 2 * specific_energy * squared_specific_angular_momentum / np.square(masses))
+
+    def _plot_distances_from_cores(self, frame_slice: slice):
+        for i in range(2):
+            self.axes_array[0, i].plot(self.two_galaxy_problem.time_domain[frame_slice], self._distace_from_cores[i, frame_slice])
+
+    def _plot_eccentricity(self, frame_slice: slice):
+        for i in range(2):
+            self.axes_array[1, i].plot(self.two_galaxy_problem.time_domain[frame_slice], self._eccentricity[i, frame_slice])
+
+    def _annotate_figure(self):
+        for i, quantity in zip(range(2), ('Distance', 'Eccentricity')):
+            for j in range(2):
+                ax = self.axes_array[i, j]  # type: Axes
+                ax.set_xlabel('Time')
+                ax.set_ylabel(quantity)
+                ax.set_title(f'{quantity} relative to\nthe core of galaxy {j+1}')
