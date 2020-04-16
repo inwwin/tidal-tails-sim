@@ -202,6 +202,8 @@ class TestMassProfiler:
             raise TypeError('two_galaxy_problem must be an instance of tidaltailsim.two_galaxy_problem.TwoGalaxyProblem')
         if galaxy_index not in (1, 2):
             raise ValueError('galaxy_index must be either 1 or 2')
+        if frame_slice is None:
+            frame_slice = slice(None)
         self._problem = two_galaxy_problem
         self._galaxy_index = galaxy_index
 
@@ -210,23 +212,12 @@ class TestMassProfiler:
 
         self._orbital_index = orbital_index
         self._test_mass_index = test_mass_index
-        if figure is None:
-            figure = Figure()
 
-        self._figure = figure  # type: Figure
-        self._axs = figure.subplots(2, 2, sharex=True)
-        # rows: 0=>distance from core 1=>aceentricity
-        # columns: 0=>rel to core1 1=>rel to core2
-
-        self._figure.set_tight_layout(True)
-        self._annotate_figure()
+        self.default_frame_slice = frame_slice  # type: slice
 
         self._calculate_relative_states_from_cores()
 
-        self._plot_distances_from_cores(frame_slice)
-        self._plot_eccentricity(frame_slice)
-
-        self.default_frame_slice = frame_slice  # type: slice
+        self.consume_figure(figure)
 
     @property
     def two_galaxy_problem(self) -> TwoGalaxyProblem:
@@ -298,3 +289,54 @@ class TestMassProfiler:
                 ax.set_xlabel('Time')
                 ax.set_ylabel(quantity)
                 ax.set_title(f'{quantity} relative to\nthe core of galaxy {j+1}')
+
+    def consume_figure(self, figure: Figure, frame_slice: slice = None):
+        """plot distances from core and aceentricities and also annotate the figure"""
+        if frame_slice is None:
+            frame_slice = self.default_frame_slice
+
+        if not isinstance(figure, Figure):
+            self._figure = None  # type: Figure
+            self._axs = None
+        else:
+            self._figure = figure  # type: Figure
+            self._axs = figure.subplots(2, 2, sharex=True)
+            # rows: 0=>distance from core 1=>aceentricity
+            # columns: 0=>rel to core1 1=>rel to core2
+
+            self._figure.set_tight_layout(True)
+            self._annotate_figure()
+
+            self._plot_distances_from_cores(frame_slice)
+            self._plot_eccentricity(frame_slice)
+
+        return self._axs
+
+    def analyse(self, frame_slice: slice = None):
+        if frame_slice is None:
+            frame_slice = self.default_frame_slice
+        mean_distance = np.nanmean(self._distace_from_cores[:, frame_slice], axis=1)
+        var_distance = np.nanvar(self._distace_from_cores[:, frame_slice], axis=1, ddof=1)
+
+        mean_eccentricity = np.nanmean(self._eccentricity[:, frame_slice], axis=1)
+        var_eccentricity = np.nanvar(self._eccentricity[:, frame_slice], axis=1, ddof=1)
+
+        times = self._problem.time_domain[frame_slice]
+
+        result = [{
+            'relative to galaxy': i + 1,
+            'distance': {
+                'mean': mean_distance[i],
+                'variance': var_distance[i]
+            },
+            'eccentricity': {
+                'mean': mean_eccentricity[i],
+                'variance': var_eccentricity[i]
+            }
+        } for i in range(2)]
+
+        return {
+            'time limit': (times[0], times[-1]),
+            'test_mass_index': self.test_mass_index,
+            'result': result
+        }

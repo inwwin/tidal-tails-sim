@@ -28,6 +28,8 @@ class ShellArgumentParser(argparse.ArgumentParser):
         setattr(args, 'exiting', exiting)
         return args
 
+    # This method will be executed in the subparser context but parse_args will not
+    # therefore, we need to take care of both so that the exit mark can properly propagte upstream
     def parse_known_args(self, args=None, namespace=None):
         self.__mark_as_exiting = False
         namespace, args = super().parse_known_args(args, namespace)
@@ -123,6 +125,7 @@ def singleorbital_pickled_routine(args):
                         pre_animate_func=lambda ax: [animator.plot_core_path(ax, core_index) for core_index in plotting_cores],
                         animate_func=lambda fig, ax, speed, framerate: animator.animate(fig, ax, rate=speed, framerate=framerate, time_initial=args.timeinitial))
     else:
+        from pprint import pprint
         # Launch animation before launching the interactive shell
         fig, ax = plt.subplots(subplot_kw=dict(projection='3d') if not args.d2 else None)
 
@@ -165,8 +168,11 @@ def singleorbital_pickled_routine(args):
         fig.show()
 
         # Animation has succesfully launched. Now launch the interactive shell
+
+        # initialise some variables
         continue_ = True
         test_mass_lines = []
+        profiler = None
 
         shell_parser = ShellArgumentParser(prog='', add_help=False)
         sub_shell_parsers = shell_parser.add_subparsers(title='command')
@@ -206,13 +212,17 @@ def singleorbital_pickled_routine(args):
 
         profile_parser = sub_shell_parsers.add_parser('profile')
         profile_parser.set_defaults(action='profile')
-        profile_parser.add_argument('test_mass_index', type=int)
+        profile_parser.add_argument('test_mass_index', type=int, nargs='?', default=None)
 
-        for parser in (plot_path_parser, profile_parser):
-            frame_slice_group = parser.add_mutually_exclusive_group(required=True)
-            frame_slice_group.add_argument('-f', '--from', type=int, dest='from_', default=False,
+        analyse_parser = sub_shell_parsers.add_parser('analyse')
+        analyse_parser.set_defaults(action='analyse')
+        analyse_parser.add_argument('test_mass_index', type=int, nargs='?', default=None)
+
+        for parser, required in zip((plot_path_parser, profile_parser, analyse_parser), (True, False, False)):
+            frame_slice_group = parser.add_mutually_exclusive_group(required=required)
+            frame_slice_group.add_argument('-f', '--from', type=int, dest='from_', default=None,
                                            metavar='begin_frame_index')
-            frame_slice_group.add_argument('-ft', '--fromto', type=int, default=False, nargs=2,
+            frame_slice_group.add_argument('-ft', '--fromto', type=int, default=None, nargs=2,
                                            metavar=('begin_frame_index', 'end_frame_index'))
 
         print('Launching interactive shell\nTry \'help\' command to learn more')
@@ -263,10 +273,36 @@ def singleorbital_pickled_routine(args):
                     test_mass_lines = []
                     fig.canvas.draw_idle()
                 elif 'profile' == action:
-                    slice_ = slice(shell_args.fromto[0], shell_args.fromto[1]) if shell_args.fromto else slice(shell_args.from_, None)
+                    if shell_args.fromto is not None or shell_args.from_ is not None:
+                        slice_ = slice(shell_args.fromto[0], shell_args.fromto[1]) if shell_args.fromto else slice(shell_args.from_, None)
+                    else:
+                        slice_ = None
+
                     fig = plt.figure()  # so that pyplot keep reference to Figure created and hence not garbage-collected
-                    profiler = TestMassProfiler(problem, args.galaxy, args.orbital, shell_args.test_mass_index, figure=fig, frame_slice=slice_)
-                    fig.show()
+
+                    if shell_args.test_mass_index is not None:
+                        profiler = TestMassProfiler(problem, args.galaxy, args.orbital, shell_args.test_mass_index, figure=fig, frame_slice=slice_)
+                        fig.show()
+                    else:
+                        if isinstance(profiler, TestMassProfiler):
+                            profiler.consume_figure(fig, frame_slice=slice_)
+                            print(f'Plotting from test_mass_index={profiler.test_mass_index}')
+                            fig.show()
+                        else:
+                            print('Please either specify the test_mass_index or call \'analyse\' command first.')
+                elif 'analyse' == action:
+                    if shell_args.fromto is not None or shell_args.from_ is not None:
+                        slice_ = slice(shell_args.fromto[0], shell_args.fromto[1]) if shell_args.fromto else slice(shell_args.from_, None)
+                    else:
+                        slice_ = None
+
+                    if shell_args.test_mass_index is not None:
+                        profiler = TestMassProfiler(problem, args.galaxy, args.orbital, shell_args.test_mass_index, frame_slice=slice_)
+
+                    if isinstance(profiler, TestMassProfiler):
+                        pprint(profiler.analyse(frame_slice=slice_), sort_dicts=False)
+                    else:
+                        print('Please either specify the test_mass_index or call \'profile\' command first.')
 
 
 def parse_animation(args, dimension_is_3, animate_func, pre_animate_func=None):
