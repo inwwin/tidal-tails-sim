@@ -282,6 +282,13 @@ class TestMassProfiler:
         for i in range(2):
             self.axes_array[1, i].plot(self.two_galaxy_problem.time_domain[frame_slice], self._eccentricity[i, frame_slice])
 
+    def _plot_distance_fits(self, frame_slice: slice):
+        coeff = self.distance_linear_regression(frame_slice)
+        for i in range(2):
+            fit = np.poly1d(coeff[i, :])
+            time_limit = self._problem.time_domain[frame_slice][(0, -1), ]
+            self.axes_array[0, i].plot(time_limit, fit(time_limit), ':')
+
     def _annotate_figure(self):
         for i, quantity in zip(range(2), ('Distance', 'Eccentricity')):
             for j in range(2):
@@ -289,6 +296,7 @@ class TestMassProfiler:
                 ax.set_xlabel('Time')
                 ax.set_ylabel(quantity)
                 ax.set_title(f'{quantity} relative to\nthe core of galaxy {j+1}')
+        self.figure.text(0, 0, f'test_mass_index={self.test_mass_index}')
 
     def consume_figure(self, figure: Figure, frame_slice: slice = None):
         """plot distances from core and aceentricities and also annotate the figure"""
@@ -308,6 +316,7 @@ class TestMassProfiler:
             self._annotate_figure()
 
             self._plot_distances_from_cores(frame_slice)
+            self._plot_distance_fits(frame_slice)
             self._plot_eccentricity(frame_slice)
 
         return self._axs
@@ -321,13 +330,16 @@ class TestMassProfiler:
         mean_eccentricity = np.nanmean(self._eccentricity[:, frame_slice], axis=1)
         var_eccentricity = np.nanvar(self._eccentricity[:, frame_slice], axis=1, ddof=1)
 
+        coeff = self.distance_linear_regression(frame_slice)
+
         times = self._problem.time_domain[frame_slice]
 
         result = [{
             'relative to galaxy': i + 1,
             'distance': {
                 'mean': mean_distance[i],
-                'variance': var_distance[i]
+                'variance': var_distance[i],
+                'linear gradient': coeff[i, 1]
             },
             'eccentricity': {
                 'mean': mean_eccentricity[i],
@@ -340,3 +352,11 @@ class TestMassProfiler:
             'test_mass_index': self.test_mass_index,
             'result': result
         }
+
+    def distance_linear_regression(self, frame_slice: slice = None):
+        if frame_slice is None:
+            frame_slice = self.default_frame_slice
+
+        coeff = np.polyfit(self._problem.time_domain[frame_slice], self._distace_from_cores[:, frame_slice].T, 1).T
+
+        return coeff
