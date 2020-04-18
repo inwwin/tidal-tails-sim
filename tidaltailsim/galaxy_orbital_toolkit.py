@@ -1,5 +1,5 @@
 import numpy as np
-from enum import IntEnum
+from enum import IntEnum, IntFlag
 from tidaltailsim.two_galaxy_problem import TwoGalaxyProblem
 from matplotlib.animation import FuncAnimation
 from matplotlib.figure import Figure
@@ -164,6 +164,7 @@ class GalaxyOrbitalAnimator:
         # if framerate is not given, all frames get rendered (potentially impacting the performance)
         if framerate:
             framestep = int(round(self._problem.sampling_points * rate / (framerate * self._problem.time_end)))
+            # ******BUG?******
             interval = int(round(framestep * 1000 * self._problem.time_end / self._problem.sampling_points / rate))
             if interval <= 0:
                 return (None, 0.)  # The supplied parameter means the animation is too slow that there is not enough data
@@ -191,6 +192,97 @@ class GalaxyOrbitalAnimator:
                           event_source=event_source)
 
         return (animation, actual_rate, animating_artists[1])
+
+
+class TestMassResultCategory(IntFlag):
+    EllipticOrbitAboutGalaxy1   = 1       # var(accen) within tolerance and accen < 1
+    ParabolicOrbitAboutGalaxy1  = 2       # var(accen) within tolerance and accen ~ 1
+    HyperbolicOrbitAboutGalaxy1 = 4       # var(accen) within tolerance and accen > 1
+    BoundBadOrbitAboutGalaxy1   = 8       # var(accen) out of tolerance and speed within tolerance
+
+    EllipticOrbitAboutGalaxy2   = 1 * 16  # var(accen) within tolerance and accen < 1
+    ParabolicOrbitAboutGalaxy2  = 2 * 16  # var(accen) within tolerance and accen ~ 1
+    HyperbolicOrbitAboutGalaxy2 = 4 * 16  # var(accen) within tolerance and accen > 1
+    BoundBadOrbitAboutGalaxy2   = 8 * 16  # var(accen) out of tolerance and speed within tolerance
+
+    # BOTH GALAXY               =======>    var(accen) out of tolerance and speed out of tolerance
+    EscapingBadOrbitNearGalaxy1 = 1 * 256  # nearest to galaxy1
+    EscapingBadOrbitNearGalaxy2 = 2 * 256  # nearest to galaxy2
+
+
+class TestMassResultCriteriaBase:
+    """A base class of criteria for categorising the end result of a test mass"""
+
+    def accentricity_unity_threshold(self, accentricity_variance):
+        """
+        Return the minimum threshold that the accentricity has to be different from 1.000
+        that the orbit required to have in order to be categorised as non-parabolic
+
+        Parameter
+        =========
+        `aceentricity_variance`: the variance of the accentricity of the orbit
+
+        Return
+        ======
+        a (neg, pos) tuple of float or
+            --> accept this orbit as elliptical if accentricity is less than 1 - neg
+                or accept as hyperbolae if accentricity is greater than 1 + pos
+        a float or
+            --> equivalent to tuple (neg, pos) with neg=pos
+        False
+            --> reject this from well-behaved orbit straightaway
+        """
+        raise NotImplementedError()
+
+    def is_escaping(self, displacement_magnitude_change_rate):
+        """
+        in case of a non well-behaved orbit,
+        based on the rate of change of the magnitude of the displacement,
+        should this orbit still be said to be escaping from the system
+
+        Return
+        ======
+        bool
+        """
+        raise NotImplementedError()
+
+
+class TestMassResultLogarithmicCriteria(TestMassResultCriteriaBase):
+    """
+    Extend `TestMassResultCriteria`. Accentricity threshold scales logarithmically with the variance.
+
+    Paremeter
+    =========
+    `escaping_speed_threshold`: min speed threshold to say that the orbit is an escaping type
+    """
+
+    def __init__(self, escaping_speed_threshold: float):
+        self.escaping_speed_threshold = escaping_speed_threshold  # type: float
+
+        self.min_accentricity_variance_tolerance = 0.001  # type: float
+        self.max_accentricity_variance_tolerance = 0.05  # type: float
+
+        self.min_accentricity_unity_threshold = 0.1  # type: float
+        self.max_accentricity_unity_threshold = 0.2  # type: float
+
+    def accentricity_unity_threshold(self, accentricity_variance: float):
+        from math import log10
+        if accentricity_variance > self.max_accentricity_variance_tolerance:
+            # reject not well-behaved orbit
+            return False
+
+        if accentricity_variance < self.min_accentricity_variance_tolerance:
+            # if variance is whithin a specified tolerance
+            # set accentricity unity threshold to the minimum
+            return self.min_accentricity_unity_threshold
+
+        return (log10(accentricity_variance) - log10(self.min_accentricity_variance_tolerance)) \
+            / (log10(self.max_accentricity_variance_tolerance) - log10(self.min_accentricity_variance_tolerance)) \
+            * (self.max_accentricity_unity_threshold - self.min_accentricity_unity_threshold) \
+            + self.min_accentricity_unity_threshold
+
+    def is_escaping(self, displacement_magnitude_change_rate: float):
+        return displacement_magnitude_change_rate > self.escaping_speed_threshold
 
 
 class TestMassProfiler:
@@ -339,7 +431,7 @@ class TestMassProfiler:
             'distance': {
                 'mean': mean_distance[i],
                 'variance': var_distance[i],
-                'linear gradient': coeff[i, 1]
+                'linear gradient': coeff[i, 0]
             },
             'eccentricity': {
                 'mean': mean_eccentricity[i],
@@ -360,3 +452,53 @@ class TestMassProfiler:
         coeff = np.polyfit(self._problem.time_domain[frame_slice], self._distace_from_cores[:, frame_slice].T, 1).T
 
         return coeff
+
+    def categorise(self, criteria: TestMassResultCriteriaBase, frame_slice: slice = None) -> TestMassResultCategory:
+        category = TestMassResultCategory(0)
+
+        analysis = self.analyse(frame_slice)['result']
+        analysis1 = analysis[0]
+        analysis2 = analysis[1]
+
+        accentricity_threshold1 = criteria.accentricity_unity_threshold(analysis1['eccentricity']['variance'])
+        accentricity_threshold2 = criteria.accentricity_unity_threshold(analysis2['eccentricity']['variance'])
+
+        if accentricity_threshold1:
+            if not isinstance(accentricity_threshold1, tuple):
+                accentricity_threshold1 = (accentricity_threshold1, accentricity_threshold1)
+
+            if analysis1['eccentricity']['mean'] < 1 - accentricity_threshold1[0]:
+                category |= TestMassResultCategory.EllipticOrbitAboutGalaxy1
+            elif analysis1['eccentricity']['mean'] > 1 + accentricity_threshold1[1]:
+                category |= TestMassResultCategory.HyperbolicOrbitAboutGalaxy1
+            else:
+                category |= TestMassResultCategory.ParabolicOrbitAboutGalaxy1
+        else:
+            if not criteria.is_escaping(analysis1['distance']['linear gradient']):
+                category |= TestMassResultCategory.BoundBadOrbitAboutGalaxy1
+
+        if accentricity_threshold2:
+            if not isinstance(accentricity_threshold2, tuple):
+                accentricity_threshold2 = (accentricity_threshold2, accentricity_threshold2)
+
+            if analysis2['eccentricity']['mean'] < 1 - accentricity_threshold2[0]:
+                category |= TestMassResultCategory.EllipticOrbitAboutGalaxy2
+            elif analysis2['eccentricity']['mean'] > 1 + accentricity_threshold2[1]:
+                category |= TestMassResultCategory.HyperbolicOrbitAboutGalaxy2
+            else:
+                category |= TestMassResultCategory.ParabolicOrbitAboutGalaxy2
+        else:
+            if not criteria.is_escaping(analysis2['distance']['linear gradient']):
+                category |= TestMassResultCategory.BoundBadOrbitAboutGalaxy2
+
+        if not (category & int('11111111', 2)):
+            # unable to categorise into any orbits
+            # so let's say it is escaping from the system
+            if analysis1['distance']['mean'] < analysis2['distance']['mean']:
+                category |= TestMassResultCategory.EscapingBadOrbitNearGalaxy1
+            elif analysis1['distance']['mean'] > analysis2['distance']['mean']:
+                category |= TestMassResultCategory.EscapingBadOrbitNearGalaxy2
+            else:
+                raise Exception('Super weird orbit detected')
+
+        return category

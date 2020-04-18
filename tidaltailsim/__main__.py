@@ -218,7 +218,13 @@ def singleorbital_pickled_routine(args):
         analyse_parser.set_defaults(action='analyse')
         analyse_parser.add_argument('test_mass_index', type=int, nargs='?', default=None)
 
-        for parser, required in zip((plot_path_parser, profile_parser, analyse_parser), (True, False, False)):
+        categorise_parser = sub_shell_parsers.add_parser('categorise')
+        categorise_parser.set_defaults(action='categorise')
+        categorise_parser.add_argument('speed_threshold', type=float, default=None)
+        categorise_parser.add_argument('test_mass_index', type=int, nargs='?', default=None)
+
+        for parser, required in zip((plot_path_parser, profile_parser, analyse_parser, categorise_parser),
+                                    (True, False, False, False)):
             frame_slice_group = parser.add_mutually_exclusive_group(required=required)
             frame_slice_group.add_argument('-f', '--from', type=int, dest='from_', default=None,
                                            metavar='begin_frame_index')
@@ -289,7 +295,7 @@ def singleorbital_pickled_routine(args):
                             print(f'Plotting from test_mass_index={profiler.test_mass_index}')
                             fig.show()
                         else:
-                            print('Please either specify the test_mass_index or call \'analyse\' command first.')
+                            print('Please either specify the test_mass_index or call \'analyse\' or \'categorise\' command first.')
                 elif 'analyse' == action:
                     if shell_args.fromto is not None or shell_args.from_ is not None:
                         slice_ = slice(shell_args.fromto[0], shell_args.fromto[1]) if shell_args.fromto else slice(shell_args.from_, None)
@@ -302,7 +308,21 @@ def singleorbital_pickled_routine(args):
                     if isinstance(profiler, TestMassProfiler):
                         pprint(profiler.analyse(frame_slice=slice_), sort_dicts=False)
                     else:
-                        print('Please either specify the test_mass_index or call \'profile\' command first.')
+                        print('Please either specify the test_mass_index or call \'profile\' or \'categorise\' command first.')
+                elif 'categorise' == action:
+                    if shell_args.fromto is not None or shell_args.from_ is not None:
+                        slice_ = slice(shell_args.fromto[0], shell_args.fromto[1]) if shell_args.fromto else slice(shell_args.from_, None)
+                    else:
+                        slice_ = None
+
+                    if shell_args.test_mass_index is not None:
+                        profiler = TestMassProfiler(problem, args.galaxy, args.orbital, shell_args.test_mass_index, frame_slice=slice_)
+
+                    if isinstance(profiler, TestMassProfiler):
+                        print(profiler.categorise(criteria=TestMassResultLogarithmicCriteria(shell_args.speed_threshold),
+                                                  frame_slice=slice_))
+                    else:
+                        print('Please either specify the test_mass_index or call \'profile\' or \'analyse\' command first.')
 
 
 def parse_animation(args, dimension_is_3, animate_func, pre_animate_func=None):
