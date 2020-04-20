@@ -103,9 +103,25 @@ def two_galaxy_pickled_routine(args):
     problem.verbose = args.verbose
     problem.suppress_error = args.quiet
 
+    if args.cat_csv_galaxy1:
+        orbitalprofiler_galaxy1 = TwoGalaxyProblemProfiler(problem, 1)
+        with open(args.cat_csv_galaxy1, 'r', newline='') as c:
+            orbitalprofiler_galaxy1.import_categories_csv(c)
+        color_galaxy1 = orbitalprofiler_galaxy1.to_colors()
+    else:
+        color_galaxy1 = None
+
+    if args.cat_csv_galaxy2:
+        orbitalprofiler_galaxy2 = TwoGalaxyProblemProfiler(problem, 2)
+        with open(args.cat_csv_galaxy2, 'r', newline='') as c:
+            orbitalprofiler_galaxy2.import_categories_csv(c)
+        color_galaxy2 = orbitalprofiler_galaxy2.to_colors()
+    else:
+        color_galaxy2 = None
+
     parse_animation(args, not args.d2,
                     pre_animate_func=lambda ax: problem.plot_two_body_paths(ax),
-                    animate_func=lambda fig, ax, speed, framerate: problem.animate(fig, ax, rate=speed, framerate=framerate))
+                    animate_func=lambda fig, ax, speed, framerate: problem.animate(fig, ax, rate=speed, framerate=framerate, color_lists_tuple=(color_galaxy1, color_galaxy2)))
 
 
 def singleorbital_pickled_routine(args):
@@ -223,8 +239,12 @@ def singleorbital_pickled_routine(args):
         categorise_parser.add_argument('speed_threshold', type=float, default=None)
         categorise_parser.add_argument('test_mass_index', type=int, nargs='?', default=None)
 
-        for parser, required in zip((plot_path_parser, profile_parser, analyse_parser, categorise_parser),
-                                    (True, False, False, False)):
+        categorise_orbital_parser = sub_shell_parsers.add_parser('categorise_orbital')
+        categorise_orbital_parser.set_defaults(action='categorise_orbital')
+        categorise_orbital_parser.add_argument('speed_threshold', type=float, default=None)
+
+        for parser, required in zip((plot_path_parser, profile_parser, analyse_parser, categorise_parser, categorise_orbital_parser),
+                                    (True, False, False, False, True)):
             frame_slice_group = parser.add_mutually_exclusive_group(required=required)
             frame_slice_group.add_argument('-f', '--from', type=int, dest='from_', default=None,
                                            metavar='begin_frame_index')
@@ -323,6 +343,33 @@ def singleorbital_pickled_routine(args):
                                                   frame_slice=slice_))
                     else:
                         print('Please either specify the test_mass_index or call \'profile\' or \'analyse\' command first.')
+                elif 'categorise_orbital' == action:
+                    slice_ = slice(shell_args.fromto[0], shell_args.fromto[1]) if shell_args.fromto else slice(shell_args.from_, None)
+                    orbitalprofiler = TwoGalaxyProblemProfiler(problem, args.galaxy)
+                    categories = np.array(orbitalprofiler.auto_categorise_single_orbital(TestMassResultLogarithmicCriteria(shell_args.speed_threshold), args.orbital, slice_))
+                    print('To understand these output, please refer to the source code for class `TestMassResultCategory` in the module `tidaltailsim.galaxy_orbital_toolkit`.\nBasically these data make sense only in binary.')
+                    print('raw_categories:', categories,
+                          'raw_categories in leftmost 5 bits:', categories & TestMassResultCategory.about_or_near_galaxy1,
+                          'raw_categories in 2nd leftmost 5 bits:', (categories & TestMassResultCategory.about_or_near_galaxy2) >> 5,
+                          'ambiguous test masses:', orbitalprofiler.detect_ambiguous_test_masses(),
+                          sep='\n')
+
+
+def export_categorised_twogalaxy_routine(args):
+    with open(args.path, 'rb') as f:
+        problem = pickle.load(f)  # type: TwoGalaxyProblem
+    slice_ = slice(args.fromto[0], args.fromto[1]) if args.fromto else slice(args.from_, None)
+    orbitalprofiler = TwoGalaxyProblemProfiler(problem, args.galaxy)
+    criteria = TestMassResultLogarithmicCriteria(args.speed_threshold)
+    criteria.min_accentricity_variance_tolerance = args.var_e_limit[0]
+    criteria.max_accentricity_variance_tolerance = args.var_e_limit[1]
+    criteria.min_accentricity_unity_threshold = args.para_e_limit[0]
+    criteria.max_accentricity_unity_threshold = args.para_e_limit[1]
+    orbitalprofiler.auto_categorise_all_orbitals(criteria, slice_)
+    with open(args.categories_csv, 'w', newline='') as c:
+        orbitalprofiler.export_categories_csv(c)
+    if args.verbose:
+        print(f'Automatically-detected categories data exported to file {args.categories_csv}')
 
 
 def parse_animation(args, dimension_is_3, animate_func, pre_animate_func=None):
@@ -394,7 +441,7 @@ if __name__ == '__main__':
 
     flags_group = parser.add_argument_group(title='flags')
     flags_group.add_argument('-h', '--help', action='help', help='show this help message and exit')
-    flags_group.add_argument('--version', action='version', version='tidaltailsim Version 0.2.0\nCopyright © 2020 Panawat Wong-Klaew. All rights reserved.', help='show the version of this script and exit')
+    flags_group.add_argument('--version', action='version', version='tidaltailsim Version 0.9.0\nCopyright © 2020 Panawat Wong-Klaew. All rights reserved.', help='show the version of this script and exit')
     verbosity_group = flags_group.add_mutually_exclusive_group()
     verbosity_group.add_argument('-v', '--verbose', action='store_true', help='be more verbose')
     verbosity_group.add_argument('-q', '--quiet', action='store_true', help='suppress error messages')
@@ -435,7 +482,7 @@ if __name__ == '__main__':
 
     # This required Python 3.7, since MCS use Python 3.6.9, it is disabled
     # subparsers = parser.add_subparsers(title='mode of operation', required=True)
-    # This is a workaroun
+    # This is a workaround
     subparsers = parser.add_subparsers(title='mode of operation')
 
     twobody_parser = subparsers.add_parser('2body', help='solve two-body problem only')
@@ -450,6 +497,9 @@ if __name__ == '__main__':
 
     singleorbital_pickled_parser = subparsers.add_parser('single_orbital_fromfile', help='import solved two-galaxy collision problem from a file previously exported from the 2galaxy subcommand, and animate only a specific orbital with a configurable origin')
     singleorbital_pickled_parser.set_defaults(func=singleorbital_pickled_routine)
+
+    categorise_twogalaxy_parser = subparsers.add_parser('categorise_2galaxy_fromfile', help='Attempt to automatically categorise disrupted test masses following a 2-galaxy collisional event from a solved two-galaxy collision problem file previously exported from the 2galaxy subcommand. Or, as well as, animating them.')
+    categorise_twogalaxy_parser.set_defaults(func=export_categorised_twogalaxy_routine)
 
     for _parser in (twobody_parser, twogalaxy_parser):
         general_group = _parser.add_argument_group(title='general simulation parameters')
@@ -498,6 +548,8 @@ if __name__ == '__main__':
                                   help='export the simulation result to a file specified by `path`. If no extension is given, the defult extension .pkl will be used.')
 
     twogalaxy_pickled_parser.add_argument('path', help='the two-galaxy collision problem file to be imported')
+    twogalaxy_pickled_parser.add_argument('-c1', '--cat_csv_galaxy1', help='the csv file of test masses\' categories for galaxy1')
+    twogalaxy_pickled_parser.add_argument('-c2', '--cat_csv_galaxy2', help='the csv file of test masses\' categories for galaxy2')
 
     singleorbital_pickled_parser.add_argument('path', help='the two-galaxy collision problem file to be imported')
     singleorbital_pickled_parser.add_argument('galaxy', type=int, choices=(1, 2),
@@ -511,6 +563,24 @@ if __name__ == '__main__':
                                               help='the initial time of the animation')
     singleorbital_pickled_parser.add_argument('-i', '--interactive', action='store_true',
                                               help='launch an interactive CLI shell, for advanced analysis of the orbital. --animationout, --adjustgui, and --nogui will be ignored')
+
+    frame_slice_export_categorised_group = categorise_twogalaxy_parser.add_mutually_exclusive_group(required=True)
+    frame_slice_export_categorised_group.add_argument('-f', '--from', type=int, dest='from_', default=None,
+                                                      metavar='begin_frame_index')
+    frame_slice_export_categorised_group.add_argument('-ft', '--fromto', type=int, default=None, nargs=2,
+                                                      metavar=('begin_frame_index', 'end_frame_index'))
+
+    categorise_twogalaxy_parser.add_argument('-var-e-limit', dest='var_e_limit', nargs=2, type=float, default=[.001, .05],
+                                             metavar=('min', 'max'))
+    categorise_twogalaxy_parser.add_argument('-parabola-e-limit', dest='para_e_limit', nargs=2, type=float, default=[.05, .2],
+                                             metavar=('min', 'max'))
+
+    categorise_twogalaxy_parser.add_argument('path', help='the two-galaxy collision problem file to be imported')
+    categorise_twogalaxy_parser.add_argument('categories_csv',
+                                             help='the csv file to be exported to')
+    categorise_twogalaxy_parser.add_argument('galaxy', type=int, choices=(1, 2),
+                                             help='the galaxy index to be categorised')
+    categorise_twogalaxy_parser.add_argument('speed_threshold', type=float)
 
     args = parser.parse_args()
 

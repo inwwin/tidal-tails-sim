@@ -332,33 +332,54 @@ class TwoGalaxyProblem(TwoBodyProblem):
 
         return (self._galaxy1_result, self._galaxy2_result)
 
-    def _prepare_animating_object(self, axes, trail=0., zdir='z'):
-        lines2body = super()._prepare_animating_object(axes, zdir)
+    def _prepare_animating_object(self, axes, color_lists_tuple=(None, None), **kwargs):
+        lines2body = super()._prepare_animating_object(axes, **kwargs)
         lines2orbital = dict()
-        for galaxy_index, hue in zip(range(1, 3), (218 / 360, 34 / 360)):
+        for galaxy_index, hue, color_lists in zip(range(1, 3), (218 / 360, 34 / 360), color_lists_tuple):
             galaxy_states = getattr(self, '_galaxy{0:d}_states'.format(galaxy_index))
-            for orbital_states, sat in zip(galaxy_states, np.linspace(1, 0.3, len(galaxy_states))):
-                if hasattr(axes, 'plot3D'):
-                    line, = axes.plot3D(orbital_states[:, 0, 0], orbital_states[:, 1, 0], orbital_states[:, 2, 0], '.', zdir=zdir, color=hsv_to_rgb((hue, sat, 1)), markersize=3.0)
-                    # if trail != 0:
-                    #     indices_count = int(round(self._sampling_points / self._t_end * trail))
-                    #     for i in range(orbital_states.shape[0]):
-                    #         line_trail, = axes.plot3D([orbital_states[i, 0, 0]], [orbital_states[i, 1, 0]], [orbital_states[i, 2, 0]], zdir=zdir, color=hsv_to_rgb((hue, sat, 1)))
+            if color_lists is None:
+                color_lists = [None] * len(galaxy_states)
+            for orbital_states, sat, color_list in zip(galaxy_states, np.linspace(1, 0.3, len(galaxy_states)), color_lists):
+                if color_list is None:
+                    if hasattr(axes, 'plot3D'):
+                        # This is line3D
+                        line_or_path, = axes.plot3D(orbital_states[:, 0, 0], orbital_states[:, 1, 0], orbital_states[:, 2, 0], '.', color=hsv_to_rgb((hue, sat, 1)), markersize=3.0)
+                        # if trail != 0:
+                        #     indices_count = int(round(self._sampling_points / self._t_end * trail))
+                        #     for i in range(orbital_states.shape[0]):
+                        #         line_trail, = axes.plot3D([orbital_states[i, 0, 0]], [orbital_states[i, 1, 0]], [orbital_states[i, 2, 0]], zdir=zdir, color=hsv_to_rgb((hue, sat, 1)))
+                    else:
+                        # This is line
+                        line_or_path, = axes.plot(orbital_states[:, 0, 0], orbital_states[:, 1, 0], '.', color=hsv_to_rgb((hue, sat, 1)), markersize=3.0)
                 else:
-                    line, = axes.plot(orbital_states[:, 0, 0], orbital_states[:, 1, 0], '.', color=hsv_to_rgb((hue, sat, 1)), markersize=3.0)
-                lines2orbital[line] = orbital_states
+                    if hasattr(axes, 'scatter3D'):
+                        # This is path3D
+                        line_or_path = axes.scatter3D(orbital_states[:, 0, 0], orbital_states[:, 1, 0], orbital_states[:, 2, 0], c=color_list, s=3.0 ** 2, depthshade=False)
+                    else:
+                        # This is path
+                        line_or_path = axes.scatter(orbital_states[:, 0, 0], orbital_states[:, 1, 0], c=color_list, s=3.0 ** 2)
+
+                lines2orbital[line_or_path] = orbital_states
 
         return (lines2body, lines2orbital)
 
     def _animation_func(self, frame_index, *animating_artists):
-        lines = super()._animation_func(frame_index, *animating_artists[0])
+        animating_objs = super()._animation_func(frame_index, *animating_artists[0])
 
         lines2orbital = animating_artists[1]
-        for line, orbital_states in lines2orbital.items():
-            if hasattr(line, 'set_data_3d'):
-                line.set_data_3d(orbital_states[:, 0, frame_index], orbital_states[:, 1, frame_index], orbital_states[:, 2, frame_index])
-            else:
-                line.set_data(orbital_states[:, 0, frame_index], orbital_states[:, 1, frame_index])
-            lines.append(line)
+        for line_or_path, orbital_states in lines2orbital.items():
+            if hasattr(line_or_path, 'set_data_3d'):
+                # Line3D
+                line_or_path.set_data_3d(orbital_states[:, 0, frame_index], orbital_states[:, 1, frame_index], orbital_states[:, 2, frame_index])
+            elif hasattr(line_or_path, 'set_data'):
+                # Line
+                line_or_path.set_data(orbital_states[:, 0, frame_index], orbital_states[:, 1, frame_index])
+            elif hasattr(line_or_path, 'set_offsets'):
+                # Path
+                line_or_path.set_offsets(orbital_states[:, :2, frame_index])
+                if hasattr(line_or_path, 'set_3d_properties'):
+                    # Path3D
+                    line_or_path.set_3d_properties(orbital_states[:, 2, frame_index], zdir='z')
+            animating_objs.append(line_or_path)
 
-        return lines
+        return animating_objs

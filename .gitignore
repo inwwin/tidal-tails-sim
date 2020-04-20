@@ -3,6 +3,7 @@
 tidal-tails-sim.sublime-workspace
 */__pycache__/
 *.pkl
+*.csv
 *.mp4
 *.png
 *.pdf

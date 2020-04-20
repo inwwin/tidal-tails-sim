@@ -230,7 +230,7 @@ class TwoBodyProblem:
         self._process_integration_result()
 
         self._t_end = t_end
-        self._sampling_points = 1000
+        self._sampling_points = sampling_points
 
         return (self._integration_result_future, self._integration_result_past)
 
@@ -380,7 +380,7 @@ class TwoBodyProblem:
         # z2 = np.zeros(x2.shape)
         return (position_1, position_2)
 
-    def plot_two_body_paths(self, axes, zdir='z', plot_v0=None, **kwargs):
+    def plot_two_body_paths(self, axes, plot_v0=None, **kwargs):
 
         # if zdir is supplied assume that axes is an axes3D instance
         if not hasattr(axes, 'plot3D'):
@@ -396,15 +396,15 @@ class TwoBodyProblem:
                         axes.arrow(self._x2[i], self._y2[i], factor * self._vx2[i], factor * self._vy2[i], width=.05, color='burlywood')
 
         else:
-            line1, = axes.plot3D(self._x1, self._y1, zdir=zdir, color='royalblue')
-            line2, = axes.plot3D(self._x2, self._y2, zdir=zdir, color='darkorange')
+            line2, = axes.plot3D(self._x2, self._y2, color='darkorange')
+            line1, = axes.plot3D(self._x1, self._y1, color='royalblue')
 
         return (line1, line2)
 
-    def _prepare_animating_object(self, axes, zdir='z'):
+    def _prepare_animating_object(self, axes):
         if hasattr(axes, 'plot3D'):
-            line2body1, = axes.plot3D([self._x1[0]], [self._y1[0]], '.', zdir=zdir, color='navy', markersize=5.0)
-            line2body2, = axes.plot3D([self._x2[0]], [self._y2[0]], '.', zdir=zdir, color='maroon', markersize=5.0)
+            line2body1, = axes.plot3D([self._x1[0]], [self._y1[0]], '.', color='navy', markersize=5.0)
+            line2body2, = axes.plot3D([self._x2[0]], [self._y2[0]], '.', color='maroon', markersize=5.0)
         else:
             line2body1, = axes.plot([self._x1[0]], [self._y1[0]], '.', color='navy', markersize=5.0)
             line2body2, = axes.plot([self._x2[0]], [self._y2[0]], '.', color='maroon', markersize=5.0)
@@ -423,7 +423,7 @@ class TwoBodyProblem:
 
         return [line2body1, line2body2]
 
-    def animate(self, figure, axes, zdir='z', rate=1.0, framerate=None):
+    def animate(self, figure, axes, rate=1.0, framerate=None, **kwargs):
 
         # if framerate is not given, all frames get rendered (potentially impacting the performance)
         if framerate:
@@ -440,7 +440,7 @@ class TwoBodyProblem:
             frames = self._t.shape[0]
             actual_rate = 1000.0 * self._t_end / interval / self._sampling_points
 
-        animating_artists = self._prepare_animating_object(axes, zdir)
+        animating_artists = self._prepare_animating_object(axes, **kwargs)
 
         animation = \
             FuncAnimation(figure,

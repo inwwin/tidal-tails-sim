@@ -164,7 +164,6 @@ class GalaxyOrbitalAnimator:
         # if framerate is not given, all frames get rendered (potentially impacting the performance)
         if framerate:
             framestep = int(round(self._problem.sampling_points * rate / (framerate * self._problem.time_end)))
-            # ******BUG?******
             interval = int(round(framestep * 1000 * self._problem.time_end / self._problem.sampling_points / rate))
             if interval <= 0:
                 return (None, 0.)  # The supplied parameter means the animation is too slow that there is not enough data
@@ -195,19 +194,49 @@ class GalaxyOrbitalAnimator:
 
 
 class TestMassResultCategory(IntFlag):
-    EllipticOrbitAboutGalaxy1   = 1       # var(accen) within tolerance and accen < 1
-    ParabolicOrbitAboutGalaxy1  = 2       # var(accen) within tolerance and accen ~ 1
-    HyperbolicOrbitAboutGalaxy1 = 4       # var(accen) within tolerance and accen > 1
-    BoundBadOrbitAboutGalaxy1   = 8       # var(accen) out of tolerance and speed within tolerance
+    EllipticOrbitAboutGalaxy1   = 1        # var(accen) within tolerance and accen < 1
+    ParabolicOrbitAboutGalaxy1  = 2        # var(accen) within tolerance and accen ~ 1
+    HyperbolicOrbitAboutGalaxy1 = 4        # var(accen) within tolerance and accen > 1
+    BoundBadOrbitAboutGalaxy1   = 8        # var(accen) out of tolerance and speed within tolerance
+    EscapingBadOrbitNearGalaxy1 = 16       # var(accen) out of tolerance and speed out of tolerance, nearest to galaxy1
 
-    EllipticOrbitAboutGalaxy2   = 1 * 16  # var(accen) within tolerance and accen < 1
-    ParabolicOrbitAboutGalaxy2  = 2 * 16  # var(accen) within tolerance and accen ~ 1
-    HyperbolicOrbitAboutGalaxy2 = 4 * 16  # var(accen) within tolerance and accen > 1
-    BoundBadOrbitAboutGalaxy2   = 8 * 16  # var(accen) out of tolerance and speed within tolerance
+    EllipticOrbitAboutGalaxy2   = 1 * 32   # var(accen) within tolerance and accen < 1
+    ParabolicOrbitAboutGalaxy2  = 2 * 32   # var(accen) within tolerance and accen ~ 1
+    HyperbolicOrbitAboutGalaxy2 = 4 * 32   # var(accen) within tolerance and accen > 1
+    BoundBadOrbitAboutGalaxy2   = 8 * 32   # var(accen) out of tolerance and speed within tolerance
+    EscapingBadOrbitNearGalaxy2 = 16 * 32  # var(accen) out of tolerance and speed out of tolerance, nearest to galaxy2
 
-    # BOTH GALAXY               =======>    var(accen) out of tolerance and speed out of tolerance
-    EscapingBadOrbitNearGalaxy1 = 1 * 256  # nearest to galaxy1
-    EscapingBadOrbitNearGalaxy2 = 2 * 256  # nearest to galaxy2
+    about_or_near_galaxy1 = EllipticOrbitAboutGalaxy1 \
+        | ParabolicOrbitAboutGalaxy1 \
+        | HyperbolicOrbitAboutGalaxy1 \
+        | BoundBadOrbitAboutGalaxy1 \
+        | EscapingBadOrbitNearGalaxy1
+
+    about_or_near_galaxy2 = EllipticOrbitAboutGalaxy2 \
+        | ParabolicOrbitAboutGalaxy2 \
+        | HyperbolicOrbitAboutGalaxy2 \
+        | BoundBadOrbitAboutGalaxy2 \
+        | EscapingBadOrbitNearGalaxy2
+
+    def is_somehow_about_or_near_galaxy1(self):
+        return bool(self & TestMassResultCategory.about_or_near_galaxy1)
+
+    def is_somehow_about_or_near_galaxy2(self):
+        return bool(self & TestMassResultCategory.about_or_near_galaxy2)
+
+    def is_parent_galaxy_ambiguous(self):
+        return self.is_somehow_about_or_near_galaxy1() and self.is_somehow_about_or_near_galaxy2()
+
+    def is_parabolic(self):
+        return bool(self & TestMassResultCategory.ParabolicOrbitAboutGalaxy1) \
+            and bool(self & TestMassResultCategory.ParabolicOrbitAboutGalaxy2)
+
+    def is_bound_bad_orbit(self):
+        return bool(self & TestMassResultCategory.BoundBadOrbitAboutGalaxy1) \
+            and bool(self & TestMassResultCategory.BoundBadOrbitAboutGalaxy2)
+
+    def should_be_reviewed(self):
+        return self.is_parabolic() or self.is_bound_bad_orbit()
 
 
 class TestMassResultCriteriaBase:
@@ -262,7 +291,7 @@ class TestMassResultLogarithmicCriteria(TestMassResultCriteriaBase):
         self.min_accentricity_variance_tolerance = 0.001  # type: float
         self.max_accentricity_variance_tolerance = 0.05  # type: float
 
-        self.min_accentricity_unity_threshold = 0.1  # type: float
+        self.min_accentricity_unity_threshold = 0.05  # type: float
         self.max_accentricity_unity_threshold = 0.2  # type: float
 
     def accentricity_unity_threshold(self, accentricity_variance: float):
@@ -491,7 +520,7 @@ class TestMassProfiler:
             if not criteria.is_escaping(analysis2['distance']['linear gradient']):
                 category |= TestMassResultCategory.BoundBadOrbitAboutGalaxy2
 
-        if not (category & int('11111111', 2)):
+        if not (category & int('0111101111', 2)):
             # unable to categorise into any orbits
             # so let's say it is escaping from the system
             if analysis1['distance']['mean'] < analysis2['distance']['mean']:
@@ -502,3 +531,99 @@ class TestMassProfiler:
                 raise Exception('Super weird orbit detected')
 
         return category
+
+
+class TwoGalaxyProblemProfiler:
+    """bulk categorising all test masses in a galaxy, including reviewing the results"""
+
+    def __init__(self, problem: TwoGalaxyProblem, galaxy_index: int):
+        if not isinstance(problem, TwoGalaxyProblem):
+            raise TypeError('two_galaxy_problem must be an instance of tidaltailsim.two_galaxy_problem.TwoGalaxyProblem')
+        if galaxy_index not in (1, 2):
+            raise ValueError('galaxy_index must be either 1 or 2')
+
+        self._problem = problem
+        self._galaxy_index = galaxy_index
+
+        self.raw_categories = dict()
+
+        self._orbitals_properties = getattr(self._problem, 'galaxy{0:d}_orbitals_properties'.format(self._galaxy_index))
+
+    def auto_categorise_single_orbital(self, criteria: TestMassResultCriteriaBase, orbital_index: int,
+                                       frame_slice: slice = slice(None)):
+        if frame_slice is None:
+            frame_slice = slice(None)
+        if not isinstance(orbital_index, int) or orbital_index < 0 or orbital_index >= len(self._orbitals_properties):
+            raise IndexError()
+
+        self.raw_categories[orbital_index] = list()
+
+        test_mass_count = self._orbitals_properties[orbital_index]['states'].shape[0]
+
+        for test_mass_index in range(test_mass_count):
+            profiler = TestMassProfiler(self._problem, self._galaxy_index, orbital_index, test_mass_index,
+                                        frame_slice=frame_slice)
+            self.raw_categories[orbital_index].append(profiler.categorise(criteria))
+
+        return self.raw_categories[orbital_index]
+
+    def auto_categorise_all_orbitals(self, criteria: TestMassResultCriteriaBase, frame_slice: slice = slice(None)):
+        for i in range(len(self._orbitals_properties)):
+            self.auto_categorise_single_orbital(criteria, i, frame_slice)
+
+    def detect_ambiguous_test_masses(self):
+        ambiguous_test_masses = list()
+        for orbital_index, orbital_categories in self.raw_categories.items():
+            for test_mass_index, test_mass_category in enumerate(orbital_categories):
+                if test_mass_category.is_parent_galaxy_ambiguous():
+                    ambiguous_test_masses.append((orbital_index, test_mass_index))
+
+        return ambiguous_test_masses
+
+    def export_categories_csv(self, file):
+        from csv import DictWriter
+        fieldnames = ['orbital_index', 'test_mass_index', 'categories_flags']
+        writer = DictWriter(file, fieldnames=fieldnames)
+
+        writer.writeheader()
+        for orbital_index, orbital_categories in self.raw_categories.items():
+            for test_mass_index, test_mass_category in enumerate(orbital_categories):
+                writer.writerow({'orbital_index': orbital_index,
+                                 'test_mass_index': test_mass_index,
+                                 'categories_flags': int(test_mass_category)})
+
+    def import_categories_csv(self, file):
+        from csv import DictReader
+        reader = DictReader(file)
+        self.raw_categories = dict()
+
+        for row in reader:
+            orbital_index = int(row['orbital_index'])
+            if orbital_index not in self.raw_categories:
+                self.raw_categories[orbital_index] = list()
+
+            cat_list = self.raw_categories[orbital_index]  # type: list
+            if int(row['test_mass_index']) == len(cat_list):
+                cat_list.append(TestMassResultCategory(int(row['categories_flags'])))
+            else:
+                raise Exception('test_mass_index needs to be sorted and increased one-by-one')
+
+    color_converter = {
+        TestMassResultCategory.EllipticOrbitAboutGalaxy1: 'cornflowerblue',
+        TestMassResultCategory.ParabolicOrbitAboutGalaxy1: 'mediumseagreen',
+        TestMassResultCategory.HyperbolicOrbitAboutGalaxy1: 'mediumseagreen',
+        TestMassResultCategory.BoundBadOrbitAboutGalaxy1: 'royalblue',
+        TestMassResultCategory.EscapingBadOrbitNearGalaxy1: 'seagreen',
+        TestMassResultCategory.EllipticOrbitAboutGalaxy2: 'indianred',
+        TestMassResultCategory.ParabolicOrbitAboutGalaxy2: 'goldenrod',
+        TestMassResultCategory.HyperbolicOrbitAboutGalaxy2: 'goldenrod',
+        TestMassResultCategory.BoundBadOrbitAboutGalaxy2: 'brown',
+        TestMassResultCategory.EscapingBadOrbitNearGalaxy2: 'darkgoldenrod',
+    }
+
+    def to_colors(self):
+        color_lists = list()
+        for orbital_index, cat_list in sorted(self.raw_categories.items(), key=lambda kv: kv[0]):
+            color_list = [self.color_converter[cat] if cat in self.color_converter else 'black' for cat in cat_list]
+            color_lists.append(color_list)
+        return color_lists if color_lists else None
