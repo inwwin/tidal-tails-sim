@@ -179,6 +179,7 @@ def singleorbital_pickled_routine(args):
         print(f'Total number of test masses in this orbital (index:{animator.target_orbital_index:3d}): {len(animator.target_orbital_properties["states"])}')
         print(f'Total number of frames:                                  {len(problem.time_domain)}')
         print(f'Frame index at t=0:                                      {int((len(problem.time_domain)-1)/2)}')
+        print(f'Half-total length of time:                               {problem.time_end}')
         print('==============End info==============')
 
         fig.show()
@@ -250,6 +251,12 @@ def singleorbital_pickled_routine(args):
                                            metavar='begin_frame_index')
             frame_slice_group.add_argument('-ft', '--fromto', type=int, default=None, nargs=2,
                                            metavar=('begin_frame_index', 'end_frame_index'))
+
+        for parser in (categorise_parser, categorise_orbital_parser):
+            parser.add_argument('-var-e-limit', dest='var_e_limit', nargs=2, type=float, default=[.001, .05],
+                                metavar=('min', 'max'))
+            parser.add_argument('-parabola-e-limit', dest='para_e_limit', nargs=2, type=float, default=[.05, .2],
+                                metavar=('min', 'max'))
 
         print('Launching interactive shell\nTry \'help\' command to learn more')
         while continue_:
@@ -339,14 +346,24 @@ def singleorbital_pickled_routine(args):
                         profiler = TestMassProfiler(problem, args.galaxy, args.orbital, shell_args.test_mass_index, frame_slice=slice_)
 
                     if isinstance(profiler, TestMassProfiler):
-                        print(profiler.categorise(criteria=TestMassResultLogarithmicCriteria(shell_args.speed_threshold),
+                        criteria = TestMassResultLogarithmicCriteria(shell_args.speed_threshold)
+                        criteria.min_accentricity_variance_tolerance = shell_args.var_e_limit[0]
+                        criteria.max_accentricity_variance_tolerance = shell_args.var_e_limit[1]
+                        criteria.min_accentricity_unity_threshold = shell_args.para_e_limit[0]
+                        criteria.max_accentricity_unity_threshold = shell_args.para_e_limit[1]
+                        print(profiler.categorise(criteria=criteria,
                                                   frame_slice=slice_))
                     else:
                         print('Please either specify the test_mass_index or call \'profile\' or \'analyse\' command first.')
                 elif 'categorise_orbital' == action:
                     slice_ = slice(shell_args.fromto[0], shell_args.fromto[1]) if shell_args.fromto else slice(shell_args.from_, None)
                     orbitalprofiler = TwoGalaxyProblemProfiler(problem, args.galaxy)
-                    categories = np.array(orbitalprofiler.auto_categorise_single_orbital(TestMassResultLogarithmicCriteria(shell_args.speed_threshold), args.orbital, slice_))
+                    criteria = TestMassResultLogarithmicCriteria(shell_args.speed_threshold)
+                    criteria.min_accentricity_variance_tolerance = shell_args.var_e_limit[0]
+                    criteria.max_accentricity_variance_tolerance = shell_args.var_e_limit[1]
+                    criteria.min_accentricity_unity_threshold = shell_args.para_e_limit[0]
+                    criteria.max_accentricity_unity_threshold = shell_args.para_e_limit[1]
+                    categories = np.array(orbitalprofiler.auto_categorise_single_orbital(criteria, args.orbital, slice_))
                     print('To understand these output, please refer to the source code for class `TestMassResultCategory` in the module `tidaltailsim.galaxy_orbital_toolkit`.\nBasically these data make sense only in binary.')
                     print('raw_categories:', categories,
                           'raw_categories in leftmost 5 bits:', categories & TestMassResultCategory.about_or_near_galaxy1,
