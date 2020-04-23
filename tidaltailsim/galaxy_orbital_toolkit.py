@@ -229,11 +229,11 @@ class TestMassResultCategory(IntFlag):
 
     def is_parabolic(self):
         return bool(self & TestMassResultCategory.ParabolicOrbitAboutGalaxy1) \
-            and bool(self & TestMassResultCategory.ParabolicOrbitAboutGalaxy2)
+            or bool(self & TestMassResultCategory.ParabolicOrbitAboutGalaxy2)
 
     def is_bound_bad_orbit(self):
         return bool(self & TestMassResultCategory.BoundBadOrbitAboutGalaxy1) \
-            and bool(self & TestMassResultCategory.BoundBadOrbitAboutGalaxy2)
+            or bool(self & TestMassResultCategory.BoundBadOrbitAboutGalaxy2)
 
     def should_be_reviewed(self):
         return self.is_parabolic() or self.is_bound_bad_orbit()
@@ -615,7 +615,7 @@ class TwoGalaxyProblemProfiler:
         TestMassResultCategory.BoundBadOrbitAboutGalaxy1: 'royalblue',
         TestMassResultCategory.EscapingBadOrbitNearGalaxy1: 'seagreen',
         TestMassResultCategory.EllipticOrbitAboutGalaxy2: 'indianred',
-        TestMassResultCategory.ParabolicOrbitAboutGalaxy2: 'goldenrod',
+        TestMassResultCategory.ParabolicOrbitAboutGalaxy2: 'lightcoral',
         TestMassResultCategory.HyperbolicOrbitAboutGalaxy2: 'goldenrod',
         TestMassResultCategory.BoundBadOrbitAboutGalaxy2: 'brown',
         TestMassResultCategory.EscapingBadOrbitNearGalaxy2: 'darkgoldenrod',

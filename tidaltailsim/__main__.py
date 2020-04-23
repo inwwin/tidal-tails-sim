@@ -127,6 +127,8 @@ def two_galaxy_pickled_routine(args):
 def singleorbital_pickled_routine(args):
     with open(args.path, 'rb') as f:
         problem = pickle.load(f)  # type: TwoGalaxyProblem
+    if args.verbose:
+        print(f'Problem {args.path} loaded.')
 
     orbital_count = len(getattr(problem, 'galaxy{0:d}_orbitals_properties'.format(args.galaxy)))
     if not (args.orbital < orbital_count and args.orbital >= -orbital_count):
@@ -393,7 +395,21 @@ def parse_animation(args, dimension_is_3, animate_func, pre_animate_func=None):
     # if not ((args.animationout is None and args.nogui) or
     #         (args.animationout is not None and args.nogui and args.speed <= 0)):
     if (not args.nogui) or (args.speed > 0 and args.animationout is not None):
-        fig, ax = plt.subplots(subplot_kw=dict(projection='3d') if dimension_is_3 else None)
+        if args.animationwriter:
+            writer = args.animationwriter
+        else:
+            writer = None
+
+        if writer == 'ffmpeg':
+            kwargs = {
+                'dpi': 100,
+                'figsize': (1366 / 100, 1024 / 100),
+                'tight_layout': True
+            }
+        else:
+            kwargs = dict()
+
+        fig, ax = plt.subplots(subplot_kw=dict(projection='3d') if dimension_is_3 else None, **kwargs)
 
         if args.xlim is not None:
             ax.set_xlim(args.xlim)
@@ -421,10 +437,6 @@ def parse_animation(args, dimension_is_3, animate_func, pre_animate_func=None):
                     print(f'Animation prepared.\nThe actual speed of the animation is {actual_rate} simulation-time-unit per one animation-second')
 
                 if args.animationout:
-                    if args.animationwriter:
-                        writer = args.animationwriter
-                    else:
-                        writer = None
 
                     callback = (lambda i, n: print(f'Saving frame {i} of {n}', end='\r')) if not args.quiet else None
                     if args.nogui:
