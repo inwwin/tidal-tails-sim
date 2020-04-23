@@ -9,18 +9,20 @@ def run_process(process):
     # x4
     # command = f'python3.8 -m tidaltailsim --nogui -q -s 60 -xlim -200 400 -ylim -240 240 -fr 25 -d2 -aw ffmpeg -ao ./mp4/{process[0]}.mp4 2galaxy_fromfile -c1 ./csv/{process[0]}.csv ./out/{process[0]}.pkl'
     # x2
-    command = f'python3.8 -m tidaltailsim --nogui -q -s 60 -xlim -150 250 -ylim -160 160 -fr 25 -d2 -aw ffmpeg -ao ./mp4/{process[0]}.mp4 2galaxy_fromfile -c1 ./csv/{process[0]}.csv ./out/{process[0]}.pkl'
+    # command = f'python3.8 -m tidaltailsim --nogui -q -s 60 -xlim -150 250 -ylim -160 160 -fr 25 -d2 -aw ffmpeg -ao ./mp4/{process[0]}.mp4 2galaxy_fromfile -c1 ./csv/{process[0]}.csv ./out/{process[0]}.pkl'
+    # f2
+    command = f'python3.8 -m tidaltailsim --nogui -q -s 60 -xlim -190 190 -ylim -152 152 -fr 25 -d2 -aw ffmpeg -ao ./mp4/{process[0]}.mp4 2galaxy_fromfile -c1 ./csv/{process[0]}.csv ./out/{process[0]}.pkl'
     print(f'run {command}')
     os.system(command)
     print('end', process)
 
 
 if __name__ == '__main__':
-    print('Prepare parallel processing 2galaxy problem')
+    print('Prepare parallel rendering 2galaxy problem')
 
     # m2s = [.25, .5, 1., 2., 4.]
     # outputs_m = ['out_f4_{0:04.0f}.pkl', 'out_f2_{0:04.0f}.pkl', 'out_1_{0:04.0f}.pkl', 'out_x2_{0:04.0f}.pkl', 'out_x4_{0:04.0f}.pkl']
-    outputs_m = ['out_x2_{0:04.0f}']
+    outputs_m = ['out_f2_{0:04.0f}']
 
     # radii_space = np.linspace(2, 12, 10 * 4 + 1)
     radii_space = np.linspace(2, 12, 10 * 1 + 1)
@@ -35,10 +37,10 @@ if __name__ == '__main__':
             g1_str = f'-g1 {r:.2f} {n:d}'
             processes.append((out_str, g1_str))
 
-    print('Start parallel processing 2galaxy problem, num ex:', len(processes))
+    print('Start parallel rendering 2galaxy problem, num ex:', len(processes))
     pool = multiprocessing.Pool()
     pool.map(run_process, processes)
-    print('End parallel processing 2galaxy problem')
+    print('End parallel rendering 2galaxy problem')
     exit()
 # python -m tidaltailsim --nogui -v 2galaxy -n 89999 -g1 5 50 -o out0x2.pkl 1800 10 0
 # python -m tidaltailsim --nogui -v 2galaxy -n 9999 -g1 5 50 -o out0x3.pkl 2000 10 0
