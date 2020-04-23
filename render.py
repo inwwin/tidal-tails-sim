@@ -6,9 +6,12 @@ import multiprocessing
 
 def run_process(process):
     print('start', process, multiprocessing.current_process())
-    command = f'python3.8 -m tidaltailsim --nogui -q -s 60 -xlim -200 400 -ylim -240 240 -fr 25 -d2 -aw ffmpeg -ao ./mp4/{process[0]}.mp4 2galaxy_fromfile -c1 ./csv/{process[0]}.csv ./out/{process[0]}.pkl'
+    # x4
+    # command = f'python3.8 -m tidaltailsim --nogui -q -s 60 -xlim -200 400 -ylim -240 240 -fr 25 -d2 -aw ffmpeg -ao ./mp4/{process[0]}.mp4 2galaxy_fromfile -c1 ./csv/{process[0]}.csv ./out/{process[0]}.pkl'
+    # x2
+    command = f'python3.8 -m tidaltailsim --nogui -q -s 60 -xlim -150 250 -ylim -160 160 -fr 25 -d2 -aw ffmpeg -ao ./mp4/{process[0]}.mp4 2galaxy_fromfile -c1 ./csv/{process[0]}.csv ./out/{process[0]}.pkl'
     print(f'run {command}')
-    # os.system(command)
+    os.system(command)
     print('end', process)
 
 
@@ -17,7 +20,7 @@ if __name__ == '__main__':
 
     # m2s = [.25, .5, 1., 2., 4.]
     # outputs_m = ['out_f4_{0:04.0f}.pkl', 'out_f2_{0:04.0f}.pkl', 'out_1_{0:04.0f}.pkl', 'out_x2_{0:04.0f}.pkl', 'out_x4_{0:04.0f}.pkl']
-    outputs_m = ['out_x4_{0:04.0f}']
+    outputs_m = ['out_x2_{0:04.0f}']
 
     # radii_space = np.linspace(2, 12, 10 * 4 + 1)
     radii_space = np.linspace(2, 12, 10 * 1 + 1)
