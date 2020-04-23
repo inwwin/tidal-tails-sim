@@ -24,10 +24,10 @@ if __name__ == '__main__':
 
     # m2s = [.25, .5, 1., 2., 4.]
     # outputs_m = ['out_f4_{0:04.0f}.pkl', 'out_f2_{0:04.0f}.pkl', 'out_1_{0:04.0f}.pkl', 'out_x2_{0:04.0f}.pkl', 'out_x4_{0:04.0f}.pkl']
-    outputs_m = ['out_f4_{0:04.0f}']
+    outputs_m = ['out_1_{0:04.0f}']
 
-    # radii_space = np.linspace(2, 12, 10 * 4 + 1)
-    radii_space = np.linspace(2, 12, 10 * 1 + 1)
+    radii_space = np.linspace(2, 12, 10 * 4 + 1)
+    # radii_space = np.linspace(2, 12, 10 * 1 + 1)
     test_masses_count_space = radii_space * 100
     test_masses_count_space = test_masses_count_space.astype(np.dtype(int))
 
