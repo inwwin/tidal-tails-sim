@@ -6,9 +6,9 @@ import multiprocessing
 
 def run_process(process):
     print('start', process, multiprocessing.current_process())
-    command = f'python -m tidaltailsim --nogui -v 2galaxy -n 9999 {process[2]} {process[1]} -o {process[0]} 2000 10 0'
+    command = f'python3.8 -m tidaltailsim --nogui -v 2galaxy -n 9999 {process[2]} {process[1]} -o {process[0]} 2000 10 0'
     print(f'run {command}')
-    # os.system(command)
+    os.system(command)
     print('end', process)
 
 
