@@ -13,6 +13,9 @@ class GalaxyOrbitalAnimatorOrigin(IntEnum):
 
 
 class GalaxyOrbitalAnimator:
+    """an animator for only a single orbital in a 2galaxy problem
+    which also allows the origin to be moving with one of the galaxies"""
+
     def __init__(self, two_galaxy_problem: TwoGalaxyProblem, galaxy_index: int):
         if not isinstance(two_galaxy_problem, TwoGalaxyProblem):
             raise TypeError('two_galaxy_problem must be an instance of tidaltailsim.two_galaxy_problem.TwoGalaxyProblem')
@@ -194,6 +197,8 @@ class GalaxyOrbitalAnimator:
 
 
 class TestMassResultCategory(IntFlag):
+    """Flags of the end result of each test mass after the collision event"""
+
     EllipticOrbitAboutGalaxy1   = 1        # var(accen) within tolerance and accen < 1
     ParabolicOrbitAboutGalaxy1  = 2        # var(accen) within tolerance and accen ~ 1
     HyperbolicOrbitAboutGalaxy1 = 4        # var(accen) within tolerance and accen > 1
@@ -315,6 +320,7 @@ class TestMassResultLogarithmicCriteria(TestMassResultCriteriaBase):
 
 
 class TestMassProfiler:
+    """an advanced tool for profiling each test mass"""
 
     def __init__(self, two_galaxy_problem: TwoGalaxyProblem,
                  galaxy_index: int, orbital_index: int, test_mass_index: int,
@@ -420,7 +426,7 @@ class TestMassProfiler:
         self.figure.text(0, 0, f'test_mass_index={self.test_mass_index}')
 
     def consume_figure(self, figure: Figure, frame_slice: slice = None):
-        """plot distances from core and aceentricities and also annotate the figure"""
+        """plot graphs of distances from cores and aceentricities and also annotate the figure"""
         if frame_slice is None:
             frame_slice = self.default_frame_slice
 
@@ -443,6 +449,7 @@ class TestMassProfiler:
         return self._axs
 
     def analyse(self, frame_slice: slice = None):
+        """calculate important parameters about the trajectory of the test mass"""
         if frame_slice is None:
             frame_slice = self.default_frame_slice
         mean_distance = np.nanmean(self._distace_from_cores[:, frame_slice], axis=1)
@@ -475,6 +482,7 @@ class TestMassProfiler:
         }
 
     def distance_linear_regression(self, frame_slice: slice = None):
+        """calculate the average rate of change of the magnitude of the displacement from cores"""
         if frame_slice is None:
             frame_slice = self.default_frame_slice
 
@@ -483,6 +491,7 @@ class TestMassProfiler:
         return coeff
 
     def categorise(self, criteria: TestMassResultCriteriaBase, frame_slice: slice = None) -> TestMassResultCategory:
+        """try to categorise the end result of the test mass after a collision event using the supplied `criteria`"""
         category = TestMassResultCategory(0)
 
         analysis = self.analyse(frame_slice)['result']
@@ -622,6 +631,7 @@ class TwoGalaxyProblemProfiler:
     }
 
     def to_colors(self):
+        """convert the test mass categories to a list of colour codes for supllying to the animation function of TwoGalaxyProblem"""
         color_lists = list()
         for orbital_index, cat_list in sorted(self.raw_categories.items(), key=lambda kv: kv[0]):
             color_list = [self.color_converter[cat] if cat in self.color_converter else 'black' for cat in cat_list]

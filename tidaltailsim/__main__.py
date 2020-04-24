@@ -466,11 +466,11 @@ def parse_animation(args, dimension_is_3, animate_func, pre_animate_func=None):
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(prog='python -m tidaltailsim', add_help=False, description='A script for solving two-body problem, or two-galaxy collision problem')
+    parser = argparse.ArgumentParser(prog='python -m tidaltailsim', add_help=False, description='A script for solving two-body problem, or two-galaxy collision problem, and also render their animations and analyse the test masses behaviour following the collision event.')
 
     flags_group = parser.add_argument_group(title='flags')
     flags_group.add_argument('-h', '--help', action='help', help='show this help message and exit')
-    flags_group.add_argument('--version', action='version', version='tidaltailsim Version 0.9.0\nCopyright © 2020 Panawat Wong-Klaew. All rights reserved.', help='show the version of this script and exit')
+    flags_group.add_argument('--version', action='version', version='tidaltailsim Version 0.9.5 Copyright © 2020 Panawat Wong-Klaew. All rights reserved.', help='show the version of this script and exit')
     verbosity_group = flags_group.add_mutually_exclusive_group()
     verbosity_group.add_argument('-v', '--verbose', action='store_true', help='be more verbose')
     verbosity_group.add_argument('-q', '--quiet', action='store_true', help='suppress error messages')
@@ -502,7 +502,7 @@ if __name__ == '__main__':
                                  help='render the animation to a file, ignored if speed=0 (support extensions depend on your system settings, .htm should be okay most of the time, please consult matplotlib documentation)')
     animation_group.add_argument('-aw', '--animationwriter',
                                  metavar='writer',
-                                 help='the animation writer backend to be parsed to the animation.save function of matplotlib (default to the value given in matplotlibrc property animation.writer)')
+                                 help='the animation writer backend to be parsed to the animation.save function of matplotlib (if in doubt, try ffmpeg or html) (default to the value given in matplotlibrc property animation.writer)')
     gui_group = animation_group.add_mutually_exclusive_group()
     gui_group.add_argument('--adjustgui', action='store_true',
                            help='use the gui to zoom/adjust perspective first before saving. When this option is flagged, after the gui shows up, you will have a chance to use your mouse to adjust the plot. When you are done, return to console, and type any key to continue.')
@@ -518,16 +518,16 @@ if __name__ == '__main__':
     # twobody_parser.add_argument('-d', '--dimension', choices=['2d', '3d'], default='2d', help='Select the display dimension')
     twobody_parser.set_defaults(func=two_body_routine)
 
-    twogalaxy_parser = subparsers.add_parser('2galaxy', help='solve two-galaxy collision problem by first solving two-body problem then use the trajectories of the two bodies as the trajectories of the galaxies'' cores to simulate how stars in the galaxies move')
+    twogalaxy_parser = subparsers.add_parser('2galaxy', help='solve two-galaxy collision problem by first solving two-body problem then use the trajectories of the two bodies as the trajectories of the galaxies\' cores to simulate how stars in the galaxies move')
     twogalaxy_parser.set_defaults(func=two_galaxy_routine)
 
-    twogalaxy_pickled_parser = subparsers.add_parser('2galaxy_fromfile', help='import solved two-galaxy collision problem from a file previously exported from the 2galaxy subcommand')
+    twogalaxy_pickled_parser = subparsers.add_parser('2galaxy_fromfile', help='import solved two-galaxy collision problem from a file previously exported (pickled) from the 2galaxy subcommand, and animate it')
     twogalaxy_pickled_parser.set_defaults(func=two_galaxy_pickled_routine)
 
-    singleorbital_pickled_parser = subparsers.add_parser('single_orbital_fromfile', help='import solved two-galaxy collision problem from a file previously exported from the 2galaxy subcommand, and animate only a specific orbital with a configurable origin')
+    singleorbital_pickled_parser = subparsers.add_parser('single_orbital_fromfile', help='import solved two-galaxy collision problem from a file previously exported (pickled) from the 2galaxy subcommand, and animate only a specific orbital with a configurable origin, and also run various tools on each test mass')
     singleorbital_pickled_parser.set_defaults(func=singleorbital_pickled_routine)
 
-    categorise_twogalaxy_parser = subparsers.add_parser('categorise_2galaxy_fromfile', help='Attempt to automatically categorise disrupted test masses following a 2-galaxy collisional event from a solved two-galaxy collision problem file previously exported from the 2galaxy subcommand. Or, as well as, animating them.')
+    categorise_twogalaxy_parser = subparsers.add_parser('categorise_2galaxy_fromfile', help='import solved two-galaxy collision problem from a file previously exported (pickled) from the 2galaxy subcommand, and attempt to automatically categorise disrupted test masses following the collisional event, and save the categorisation result to a csv file.')
     categorise_twogalaxy_parser.set_defaults(func=export_categorised_twogalaxy_routine)
 
     for _parser in (twobody_parser, twogalaxy_parser):
@@ -561,20 +561,20 @@ if __name__ == '__main__':
     twogalaxy_param_group = twogalaxy_parser.add_argument_group(title='two-galaxy simulation parameters')
     twogalaxy_param_group.add_argument('-g1', '--galaxy1', nargs=2, type=float, action='append', required=True,
                                        metavar=('distance_from_core', 'stars_number'),
-                                       help='add `stars_number` evenly-spaceing circularly-orbiting particles to galaxy1 at a distance `distance_from_core` away from the core. `stars_number` should be an integer. (this argument can be parsed multiple times to add multiple orbits)')
+                                       help='add `stars_number` evenly-spaceing circularly-orbiting particles to galaxy1 at a distance `distance_from_core` away from the core. `stars_number` should be an integer. (this argument can be parsed multiple times to add multiple orbitals)')
     twogalaxy_param_group.add_argument('-g2', '--galaxy2', nargs=2, type=float, action='append',
                                        metavar=('distance_from_core', 'stars_number'),
-                                       help='add `stars_number` evenly-spaceing circularly-orbiting particles to galaxy2 at a distance `distance_from_core` away from the core. `stars_number` should be an integer. (this argument can be parsed multiple times to add multiple orbits)')
+                                       help='add `stars_number` evenly-spaceing circularly-orbiting particles to galaxy2 at a distance `distance_from_core` away from the core. `stars_number` should be an integer. (this argument can be parsed multiple times to add multiple orbitals)')
     twogalaxy_param_group.add_argument('-g1o', '--galaxy1orient', nargs=2, type=float, default=[0.0, 0.0],
                                        metavar=('theta', 'phi'),
-                                       help='specify the orientation of the galaxy1\'s galactic plane with respect to the to the two-core collision plane. The galactic plane is first created in the collision plane and then rotated along x-axis by theta and along z-axis by phi. theta and phi must be given in degrees. (default 0.0 0.0)')
+                                       help='specify the orientation of the galaxy1\'s galactic plane with respect to the to the two-core collision plane. The galactic plane is first created in the collision plane and then rotated along x-axis by theta and along z-axis by phi. theta and phi must be given in degrees. (default to 0.0 and 0.0)')
     twogalaxy_param_group.add_argument('-g2o', '--galaxy2orient', nargs=2, type=float, default=[0.0, 0.0],
                                        metavar=('theta', 'phi'),
-                                       help='specify the orientation of the galaxy2\'s galactic plane with respect to the to the two-core collision plane. The galactic plane is first created in the collision plane and then rotated along x-axis by theta and along z-axis by phi. theta and phi must be given in degrees. (default 0.0 0.0)')
+                                       help='specify the orientation of the galaxy2\'s galactic plane with respect to the to the two-core collision plane. The galactic plane is first created in the collision plane and then rotated along x-axis by theta and along z-axis by phi. theta and phi must be given in degrees. (default to 0.0 and 0.0)')
 
     twogalaxy_parser.add_argument('-o', '--out',
                                   metavar='path',
-                                  help='export the simulation result to a file specified by `path`. If no extension is given, the defult extension .pkl will be used.')
+                                  help='export the (pickled) simulation result to a file specified by `path`. If no extension is given, the defult extension .pkl will be used.')
 
     twogalaxy_pickled_parser.add_argument('path', help='the two-galaxy collision problem file to be imported')
     twogalaxy_pickled_parser.add_argument('-c1', '--cat_csv_galaxy1', help='the csv file of test masses\' categories for galaxy1')
@@ -591,25 +591,30 @@ if __name__ == '__main__':
                                               metavar='t0',
                                               help='the initial time of the animation')
     singleorbital_pickled_parser.add_argument('-i', '--interactive', action='store_true',
-                                              help='launch an interactive CLI shell, for advanced analysis of the orbital. --animationout, --adjustgui, and --nogui will be ignored')
+                                              help='display diagnostic information about the 2galaxy problem imported and launch an interactive CLI shell. useful for running advanced analysis tools of the orbital. --animationout, --adjustgui, and --nogui will be ignored')
 
     frame_slice_export_categorised_group = categorise_twogalaxy_parser.add_mutually_exclusive_group(required=True)
     frame_slice_export_categorised_group.add_argument('-f', '--from', type=int, dest='from_', default=None,
-                                                      metavar='begin_frame_index')
+                                                      metavar='begin_frame_index',
+                                                      help='The beginning frame index to run the automatic test mass categorising algorithm')
     frame_slice_export_categorised_group.add_argument('-ft', '--fromto', type=int, default=None, nargs=2,
-                                                      metavar=('begin_frame_index', 'end_frame_index'))
+                                                      metavar=('begin_frame_index', 'end_frame_index'),
+                                                      help='The beginning and ending frame indices to run the automatic test mass categorising algorithm')
 
     categorise_twogalaxy_parser.add_argument('-var-e-limit', dest='var_e_limit', nargs=2, type=float, default=[.001, .05],
-                                             metavar=('min', 'max'))
+                                             metavar=('min', 'max'),
+                                             help='the min and max limit of the borderline variance of the eccentricity to be supplied to the test mass categorising algorithm. please consult the source code for more details (default to .001 and .05)')
     categorise_twogalaxy_parser.add_argument('-parabola-e-limit', dest='para_e_limit', nargs=2, type=float, default=[.05, .2],
-                                             metavar=('min', 'max'))
+                                             metavar=('neg', 'pos'),
+                                             help='the differences from one of the eccentricity that the test mass categorising algorithm should still consider the test mass to be in parabolic orbit. please consult the source code for more details (default to .05 and .2)')
 
     categorise_twogalaxy_parser.add_argument('path', help='the two-galaxy collision problem file to be imported')
     categorise_twogalaxy_parser.add_argument('categories_csv',
                                              help='the csv file to be exported to')
     categorise_twogalaxy_parser.add_argument('galaxy', type=int, choices=(1, 2),
                                              help='the galaxy index to be categorised')
-    categorise_twogalaxy_parser.add_argument('speed_threshold', type=float)
+    categorise_twogalaxy_parser.add_argument('speed_threshold', type=float,
+                                             help='in case the test mass categorising algorithm consider the variance of the eccentricity to be too much, what threshold of relative speed should the algorithm still consider the test mass to be bound to the galaxy')
 
     args = parser.parse_args()
 
@@ -617,4 +622,4 @@ if __name__ == '__main__':
     if hasattr(args, 'func'):
         args.func(args)
     else:
-        print('Please specify the subcommand 2body, 2galaxy, or 2galaxy_fromfile')
+        print('Please specify the subcommand 2body, 2galaxy, 2galaxy_fromfile, single_orbital_fromfile, or categorise_2galaxy_fromfile')
