@@ -12,7 +12,7 @@ class TwoGalaxyProblem(TwoBodyProblem):
     (massless in the sense that they don't cause perturbation
     to the gravitational field of the system)
 
-    Reamrk:
+    Remark:
     The Hamiltonian of this problem is
     1/2 * (px^2 + py^2 + pz^2) + V1(r-r1(t)) + V2(r-r2(t))
     where px, py, pz is the velocity
@@ -271,7 +271,7 @@ class TwoGalaxyProblem(TwoBodyProblem):
         0, 1, 2 represents the x, y, z location of the particle
         3, 4, 5 represents the x, y, z velocity of the particle
 
-        Reamrk:
+        Remark:
         The Hamiltonian of this problem is
         1/2 * (px^2 + py^2 + pz^2) + V1(r-r1(t)) + V2(r-r2(t))
         where px, py, pz is the velocity

@@ -3,6 +3,8 @@ from scipy.integrate import solve_ivp
 
 
 class OrbitCartesianSolver:
+    """just a proof-of-concept of TwoGalaxyProblem class"""
+
     def grad_gravi_potential_feel(self, core_mass, core_position, evaluating_position):
         """
         Calculate the gradient of the gravitational potential produced by each galaxy

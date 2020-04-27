@@ -392,14 +392,14 @@ class TestMassProfiler:
 
         squared_specific_angular_momentum = np.sum(np.square(specific_angular_momentum), axis=1)
 
-        masses = np.array([self._problem.M1_feel, self._problem.M2_feel])[:, np.newaxis]
+        masses_G = np.array([self._problem.M1_feel, self._problem.M2_feel])[:, np.newaxis] * self._problem.G_feel
 
         # specfic_energy = (kinetic + potential) / test_mass
         specific_energy = .5 * np.sum(np.square(self._relative_test_mass_states[:, 3:, ...]), axis=1) \
-            - self._problem.G_feel * masses / self._distace_from_cores
+            - masses_G / self._distace_from_cores
 
         # eccentricity defined here https://en.wikipedia.org/wiki/Orbital_eccentricity#Definition
-        self._eccentricity = np.sqrt(1 + 2 * specific_energy * squared_specific_angular_momentum / np.square(masses))
+        self._eccentricity = np.sqrt(1 + 2 * specific_energy * squared_specific_angular_momentum / np.square(masses_G))
 
     def _plot_distances_from_cores(self, frame_slice: slice):
         for i in range(2):

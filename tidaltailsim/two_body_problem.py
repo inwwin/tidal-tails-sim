@@ -32,7 +32,7 @@ class TwoBodyProblem:
     G   -- Gravitational constant
     M1  -- The mass of the first body
     M2  -- The mass of the second body
-    use_reduced_mass  -- should the Hamiltonian be written with reduced mass approached
+    use_reduced_mass  -- should the Hamiltonian be written with reduced mass approach
 
     If J is None, it will be automatically computed from other parameters,
     otherwise, J will be used to infer r0d (with the same sign as the passed r0d).

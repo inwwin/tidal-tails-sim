@@ -82,10 +82,10 @@ if __name__ == '__main__':
     fig, ((axb, axg), (axr, axy))  = plt.subplots(2, 2, 'all', 'row', figsize=(6, 5))
 
     catind_to_color_ax = {
-        (0, 3): ('royalblue', axb, 'Bounded to perturbed galaxy1'),
-        (1, 2, 4): ('seagreen', axg, 'Tail of perturbed galaxy1'),
-        (5, 6, 8): ('indianred', axr, 'Bounded to perturbing galaxy2'),
-        (7, 9): ('darkgoldenrod', axy, 'Tail of perturbing galaxy2'),
+        (0, 3): ('royalblue', axb, 'Bounded to disrupted galaxy1'),
+        (1, 2, 4): ('seagreen', axg, 'Tail of disrupted galaxy1'),
+        (5, 6, 8): ('indianred', axr, 'Bounded to disrupter galaxy2'),
+        (7, 9): ('darkgoldenrod', axy, 'Swung cloud of disrupter galaxy2'),
     }
 
     for catind, (color, ax, desc) in catind_to_color_ax.items():
@@ -97,7 +97,7 @@ if __name__ == '__main__':
             ax.plot(radii_space_not1 / 10, np.sum(counter_not1[i, :, catind], axis=0), fmt, color=color, markersize=3)
 
     for ax in (axr, axy):
-        ax.set_xlabel('initial orbital radius\ndivided by distance of closest approach')
+        ax.set_xlabel('initial orbital radius / $r_0$')
 
     for ax in (axb, axr):
         ax.set_ylabel('fraction of test masses')
