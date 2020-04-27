@@ -605,8 +605,8 @@ if __name__ == '__main__':
                                              metavar=('min', 'max'),
                                              help='the min and max limit of the borderline variance of the eccentricity to be supplied to the test mass categorising algorithm. please consult the source code for more details (default to .001 and .05)')
     categorise_twogalaxy_parser.add_argument('-parabola-e-limit', dest='para_e_limit', nargs=2, type=float, default=[.05, .2],
-                                             metavar=('neg', 'pos'),
-                                             help='the differences from one of the eccentricity that the test mass categorising algorithm should still consider the test mass to be in parabolic orbit. please consult the source code for more details (default to .05 and .2)')
+                                             metavar=('min', 'max'),
+                                             help='the min and max difference from the unity eccentricity that the test mass categorising algorithm should still consider the test mass to be in parabolic orbit. please consult the source code for more details (default to .05 and .2)')
 
     categorise_twogalaxy_parser.add_argument('path', help='the two-galaxy collision problem file to be imported')
     categorise_twogalaxy_parser.add_argument('categories_csv',
